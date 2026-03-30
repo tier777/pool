@@ -8,6 +8,9 @@ import (
 var pools = make(map[string]string)
 
 func main() {
+	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "pong")
+	})
 	http.HandleFunc("/pool", func(w http.ResponseWriter, r *http.Request) {
 		code := r.URL.Query().Get("code")
 		if code == "" {
