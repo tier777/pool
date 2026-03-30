@@ -88,3 +88,29 @@ func PoolHandler(db *sql.DB) http.HandlerFunc {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
+
+func ClearHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		if r.Method != "DELETE" {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// простое подтверждение через query
+		confirm := r.URL.Query().Get("confirm")
+
+		if confirm != "yes" {
+			http.Error(w, "confirmation required (?confirm=yes)", http.StatusBadRequest)
+			return
+		}
+
+		_, err := db.Exec("DELETE FROM pools")
+		if err != nil {
+			http.Error(w, "failed to clear", http.StatusInternalServerError)
+			return
+		}
+
+		w.Write([]byte("cleared"))
+	}
+}

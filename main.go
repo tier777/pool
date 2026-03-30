@@ -12,6 +12,7 @@ func main() {
 		fmt.Fprint(w, "pong")
 	})
 	http.HandleFunc("/pool/", PoolHandler(db))
+	http.HandleFunc("/pools", ClearHandler(db))
 
 	fmt.Println("Server started on :8080")
 	http.ListenAndServe(":8080", nil)
