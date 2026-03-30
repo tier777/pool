@@ -26,3 +26,8 @@ vendor/
 # Файлы операционных систем
 .DS_Store
 Thumbs.db
+
+# Базы данных
+*.db
+*.sqlite
+*.sqlite3
