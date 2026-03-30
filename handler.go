@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -17,6 +18,15 @@ type PoolResponse struct {
 
 func PoolHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
+		auth := r.Header.Get("Authorization")
+		expected := "Bearer " + os.Getenv("APP_PASSWORD")
+
+		if auth != expected {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
 		parts := strings.Split(r.URL.Path, "/")
 
 		if len(parts) < 3 {
