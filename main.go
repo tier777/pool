@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 )
 
@@ -18,8 +19,11 @@ func main() {
 			return
 		}
 		if r.Method == "POST" {
-			body := make([]byte, r.ContentLength)
-			r.Body.Read(body)
+			body, error := io.ReadAll(r.Body)
+			if error != nil {
+				http.Error(w, "failed to read body", http.StatusInternalServerError)
+				return
+			}
 			pools[code] = string(body)
 			fmt.Fprint(w, "saved")
 			return
