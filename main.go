@@ -1,8 +1,8 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 )
 
@@ -19,12 +19,13 @@ func main() {
 			return
 		}
 		if r.Method == "POST" {
-			body, error := io.ReadAll(r.Body)
+			var req PoolRequest
+			error := json.NewDecoder(r.Body).Decode(&req)
 			if error != nil {
-				http.Error(w, "failed to read body", http.StatusInternalServerError)
+				http.Error(w, "invalid json", http.StatusBadRequest)
 				return
 			}
-			pools[code] = string(body)
+			pools[code] = req.Content
 			fmt.Fprint(w, "saved")
 			return
 		}
@@ -41,4 +42,8 @@ func main() {
 	})
 	fmt.Println("Server started on :8080")
 	http.ListenAndServe(":8080", nil)
+}
+
+type PoolRequest struct {
+	Content string `json:"content"`
 }
