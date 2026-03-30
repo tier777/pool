@@ -30,12 +30,15 @@ func main() {
 			return
 		}
 		if r.Method == "GET" {
+
 			value, ok := pools[code]
 			if !ok {
 				http.Error(w, "not found", http.StatusNotFound)
 				return
 			}
-			fmt.Fprintln(w, value)
+			resp := PoolRequest{Content: value}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
 			return
 		}
 		fmt.Fprint(w, "unsupported method")
