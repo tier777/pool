@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 var pools = make(map[string]string)
@@ -12,8 +13,13 @@ func main() {
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "pong")
 	})
-	http.HandleFunc("/pool", func(w http.ResponseWriter, r *http.Request) {
-		code := r.URL.Query().Get("code")
+	http.HandleFunc("/pool/", func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/")
+		if len(parts) < 3 {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
+		}
+		code := parts[2]
 		if code == "" {
 			http.Error(w, "code is required", http.StatusBadRequest)
 			return
@@ -30,7 +36,6 @@ func main() {
 			return
 		}
 		if r.Method == "GET" {
-
 			value, ok := pools[code]
 			if !ok {
 				http.Error(w, "not found", http.StatusNotFound)
