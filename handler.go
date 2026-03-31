@@ -16,17 +16,23 @@ type PoolResponse struct {
 	Content string `json:"content"`
 }
 
-func PoolHandler(db *sql.DB) http.HandlerFunc {
+func withAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		auth := r.Header.Get("Authorization")
 		expected := "Bearer " + os.Getenv("APP_PASSWORD")
 
 		if auth != expected {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
+		next(w, r)
+	}
+}
+
+func PoolHandler(db *sql.DB) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(r.URL.Path, "/")
 
 		if len(parts) < 3 {
@@ -91,7 +97,6 @@ func PoolHandler(db *sql.DB) http.HandlerFunc {
 
 func ClearHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		if r.Method != "DELETE" {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
