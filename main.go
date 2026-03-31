@@ -20,6 +20,10 @@ func main() {
 	http.HandleFunc("/pool/", withAuth(PoolHandler(db)))
 	http.HandleFunc("/pools", withAuth(ClearHandler(db)))
 
-	fmt.Println("Server started on :8080")
-	http.ListenAndServe(":8080", nil)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	http.ListenAndServe(":"+port, nil)
 }
