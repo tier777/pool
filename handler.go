@@ -16,6 +16,11 @@ type PoolResponse struct {
 	Content string `json:"content"`
 }
 
+type Pool struct {
+	Code    string `json:"code"`
+	Content string `json:"content"`
+}
+
 func withAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
@@ -95,27 +100,50 @@ func PoolHandler(db *sql.DB) http.HandlerFunc {
 	}
 }
 
-func ClearHandler(db *sql.DB) http.HandlerFunc {
+func PoolsHandler(db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != "DELETE" {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		if r.Method == "GET" {
+			rows, err := db.Query("SELECT code, content FROM pools")
+			if err != nil {
+				http.Error(w, "db error", http.StatusInternalServerError)
+				return
+			}
+			defer rows.Close()
+
+			var pools []Pool
+
+			for rows.Next() {
+				var p Pool
+				err := rows.Scan(&p.Code, &p.Content)
+				if err != nil {
+					continue
+				}
+				pools = append(pools, p)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(pools)
 			return
 		}
 
-		// простое подтверждение через query
-		confirm := r.URL.Query().Get("confirm")
+		if r.Method == "DELETE" {
+			confirm := r.URL.Query().Get("confirm")
 
-		if confirm != "yes" {
-			http.Error(w, "confirmation required (?confirm=yes)", http.StatusBadRequest)
+			if confirm != "yes" {
+				http.Error(w, "confirmation required (?confirm=yes)", http.StatusBadRequest)
+				return
+			}
+
+			_, err := db.Exec("DELETE FROM pools")
+			if err != nil {
+				http.Error(w, "failed to clear", http.StatusInternalServerError)
+				return
+			}
+
+			w.Write([]byte("cleared"))
 			return
 		}
 
-		_, err := db.Exec("DELETE FROM pools")
-		if err != nil {
-			http.Error(w, "failed to clear", http.StatusInternalServerError)
-			return
-		}
-
-		w.Write([]byte("cleared"))
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }

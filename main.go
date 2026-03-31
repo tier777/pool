@@ -14,16 +14,22 @@ func main() {
 
 	db := InitDB()
 
-	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "pong")
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "server is active")
 	})
 	http.HandleFunc("/pool/", withAuth(PoolHandler(db)))
-	http.HandleFunc("/pools", withAuth(ClearHandler(db)))
+	http.HandleFunc("/pools", withAuth(PoolsHandler(db)))
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	http.ListenAndServe(":"+port, nil)
+	fmt.Printf("Server started and listening on port %s\n", port)
+
+	err := http.ListenAndServe(":"+port, nil)
+
+	if err != nil {
+		log.Fatal("Server panic: ", err)
+	}
 }
