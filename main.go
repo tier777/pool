@@ -14,8 +14,10 @@ func main() {
 
 	db := InitDB()
 
-	http.HandleFunc("/", MainHandler())
-	http.HandleFunc("/pool", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/ping", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "pong")
+	})
+	http.HandleFunc("/api/pool", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			GetPoolHandler(db)(w, r)
 			return
@@ -26,6 +28,9 @@ func main() {
 		}
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	})
+
+	fileServer := http.FileServer(http.Dir("./web"))
+	http.Handle("/", fileServer)
 
 	port := os.Getenv("PORT")
 	if port == "" {
