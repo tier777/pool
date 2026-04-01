@@ -14,11 +14,18 @@ func main() {
 
 	db := InitDB()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "server is active")
+	http.HandleFunc("/", MainHandler())
+	http.HandleFunc("/pool", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			GetPoolHandler(db)(w, r)
+			return
+		}
+		if r.Method == "POST" {
+			SavePoolHandler(db)(w, r)
+			return
+		}
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	})
-	http.HandleFunc("/pool/", withAuth(PoolHandler(db)))
-	http.HandleFunc("/pools", withAuth(PoolsHandler(db)))
 
 	port := os.Getenv("PORT")
 	if port == "" {

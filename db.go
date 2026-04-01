@@ -3,6 +3,8 @@ package main
 import (
 	"database/sql"
 
+	"log"
+
 	_ "modernc.org/sqlite"
 )
 
@@ -12,14 +14,14 @@ func InitDB() *sql.DB {
 		panic(err)
 	}
 	query := `
-		CREATE TABLE IF NOT EXISTS pools (
-			code TEXT PRIMARY KEY,
+		CREATE TABLE IF NOT EXISTS pool (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
 			content TEXT
 		);
 		`
 	_, err = db.Exec(query)
 	if err != nil {
-		panic(err)
+		log.Fatal("failed to create table:", err)
 	}
 	return db
 }
