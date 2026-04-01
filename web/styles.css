@@ -7,3 +7,9 @@ textarea {
     width: 100%;
     height: 200px;
 }
+
+#status {
+    margin-top: 10px;
+    color: gray;
+    font-size: 14px;
+}
