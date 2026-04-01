@@ -19,14 +19,14 @@ async function save() {
     body: JSON.stringify({ content }),
   });
 
-  showStatus("Saved");
+  showStatus("saved");
 }
 
 function debounceSave() {
   clearTimeout(timeout);
 
   isTyping = true;
-  showStatus("Typing...");
+  showStatus("typing");
 
   timeout = setTimeout(() => {
     isTyping = false;
@@ -35,14 +35,22 @@ function debounceSave() {
 }
 
 function showStatus(text) {
-  document.getElementById("status").innerText = text;
+  const el = document.getElementById("status");
+  if (el.innerText.includes(text)) {
+    return;
+  }
+  el.style.opacity = 0;
+  setTimeout(() => {
+    el.innerText = `[${text}]`;
+    el.style.opacity = 1;
+  }, 100);
 }
 
 function copyText() {
   const text = document.getElementById("text");
   text.select();
   document.execCommand("copy");
-  showStatus("Copied");
+  showStatus("copied");
 }
 
 // events
