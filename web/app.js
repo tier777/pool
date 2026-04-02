@@ -53,9 +53,15 @@ function copyText() {
   showStatus("copied");
 }
 
+function clearText() {
+  document.getElementById("text").value = "";
+  save();
+}
+
 // events
 document.getElementById("text").addEventListener("input", debounceSave);
 document.getElementById("copy").onclick = copyText;
+document.getElementById("clear").onclick = clearText;
 
 // polling
 setInterval(load, 2000);

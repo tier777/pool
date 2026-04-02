@@ -3,17 +3,52 @@
     <head>
         <meta charset="utf-8" />
         <title>Pool</title>
-        <link rel="stylesheet" href="/styles.css" />
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        colors: {
+                            bg: "#EFD09E",
+                            primary: "#272727",
+                        },
+                    },
+                },
+            };
+        </script>
     </head>
-    <body>
-        <div class="container">
-            <h1 class="title">Poo0ol</h1>
 
-            <div id="status" class="status">[saved]</div>
+    <body class="bg-bg text-primary">
+        <div class="max-w-xl mx-auto p-6 flex flex-col min-h-screen">
+            <!-- Title -->
+            <h1 class="text-6xl font-bold mb-2">Poo0ol</h1>
 
-            <textarea id="text" class="textarea"></textarea>
+            <!-- Status -->
+            <div id="status" class="text-lg mb-4">[saved✓]</div>
 
-            <button id="copy" class="btn">COPY</button>
+            <!-- Textarea -->
+            <textarea
+                id="text"
+                class="flex-1 w-full border-4 border-primary p-4 bg-transparent resize-none outline-none text-base"
+            ></textarea>
+
+            <!-- Buttons -->
+            <div class="flex gap-4 mt-6">
+                <button
+                    id="clear"
+                    class="flex-1 border-4 border-primary py-4 text-lg"
+                >
+                    Clear
+                </button>
+
+                <button
+                    id="copy"
+                    class="flex-1 border-4 border-primary py-4 text-lg"
+                >
+                    Copy
+                </button>
+            </div>
         </div>
 
         <script src="/app.js"></script>
