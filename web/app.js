@@ -59,6 +59,7 @@ function clearText() {
 }
 
 // events
+document.addEventListener("touchstart", () => {}, true);
 document.getElementById("text").addEventListener("input", debounceSave);
 document.getElementById("copy").onclick = copyText;
 document.getElementById("clear").onclick = clearText;
