@@ -3,6 +3,12 @@
     <head>
         <meta charset="utf-8" />
         <title>Pool</title>
+
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, maximum-scale=1.0"
+        />
+
         <script src="https://cdn.tailwindcss.com"></script>
 
         <script>
@@ -17,34 +23,48 @@
                 },
             };
         </script>
+        <style>
+            textarea,
+            button {
+                -webkit-appearance: none;
+                border-radius: 0 !important;
+            }
+        </style>
     </head>
 
-    <body class="bg-bg text-primary">
-        <div class="max-w-xl mx-auto p-6 flex flex-col min-h-screen">
-            <!-- Title -->
-            <h1 class="text-6xl font-bold mb-2">Poo0ol</h1>
+    <body
+        class="bg-bg text-primary md:h-auto h-[100dvh] flex flex-col items-center"
+    >
+        <div
+            class="w-full max-w-xl p-6 flex flex-col h-full md:h-auto md:mt-10"
+        >
+            <h1 class="text-6xl font-bold leading-none mb-1 tracking-tight">
+                Po0l
+            </h1>
+            <div
+                id="status"
+                class="text-xl font-bold mb-4 transition-opacity duration-300"
+            >
+                [saved]
+            </div>
 
-            <!-- Status -->
-            <div id="status" class="text-lg mb-4">[saved✓]</div>
-
-            <!-- Textarea -->
             <textarea
                 id="text"
-                class="flex-1 w-full border-4 border-primary p-4 bg-transparent resize-none outline-none text-base"
+                class="flex-1 md:flex-none md:h-[512px] w-full border-[3px] border-primary p-4 bg-transparent resize-none outline-none text-lg leading-relaxed placeholder-primary/40 overflow-y-auto"
+                placeholder=""
             ></textarea>
 
-            <!-- Buttons -->
-            <div class="flex gap-4 mt-6">
+            <div class="flex gap-4 mt-6 pb-2">
                 <button
                     id="clear"
-                    class="flex-1 border-4 border-primary py-4 text-lg"
+                    class="flex-1 border-[3px] border-primary py-4 text-xl font-bold uppercase active:bg-primary active:text-bg transition-colors"
                 >
                     Clear
                 </button>
 
                 <button
                     id="copy"
-                    class="flex-1 border-4 border-primary py-4 text-lg"
+                    class="flex-1 border-[3px] border-primary py-4 text-xl font-bold uppercase active:bg-primary active:text-bg transition-colors"
                 >
                     Copy
                 </button>
