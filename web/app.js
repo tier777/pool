@@ -49,6 +49,10 @@ async function apiFetch(url, options = {}) {
     throw new Error("unauthorized");
   }
 
+  if (!res.ok) {
+    throw new Error("request failed");
+  }
+
   return res;
 }
 
@@ -64,20 +68,28 @@ async function load() {
 async function save() {
   const content = document.getElementById("text").value;
 
-  await apiFetch("/api/pool", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
-  });
+  showStatus("saving");
 
-  showStatus("saved");
+  try {
+    await apiFetch("/api/pool", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+
+    showStatus("saved");
+  } catch (err) {
+    if (err.message !== "unauthorized") {
+      showStatus("error");
+    }
+  }
 }
 
 function debounceSave() {
   clearTimeout(timeout);
 
   isTyping = true;
-  showStatus("typing");
+  showStatus("saving");
 
   timeout = setTimeout(() => {
     isTyping = false;
@@ -97,10 +109,17 @@ function showStatus(text) {
   }, 100);
 }
 
-function copyText() {
-  const text = document.getElementById("text");
-  text.select();
-  document.execCommand("copy");
+async function copyText() {
+  const content = document.getElementById("text").value;
+
+  try {
+    await navigator.clipboard.writeText(content);
+  } catch {
+    const text = document.getElementById("text");
+    text.select();
+    document.execCommand("copy");
+  }
+
   showStatus("copied");
 }
 
