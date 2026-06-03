@@ -1,9 +1,9 @@
 package main
 
 import (
+	"crypto/subtle"
 	"database/sql"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"os"
 )
@@ -18,7 +18,7 @@ func withAuth(next http.HandlerFunc) http.HandlerFunc {
 		auth := r.Header.Get("Authorization")
 		expected := "Bearer " + os.Getenv("APP_PASSWORD")
 
-		if auth != expected {
+		if len(auth) != len(expected) || subtle.ConstantTimeCompare([]byte(auth), []byte(expected)) != 1 {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -63,59 +63,5 @@ func SavePoolHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		w.Write([]byte("ok"))
-	}
-}
-
-func MainHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html")
-		fmt.Fprint(w, `
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Pool</title>
-</head>
-<body>
-
-<h2>Pool</h2>
-
-<textarea id="text" style="width:100%;height:200px"></textarea>
-<br>
-
-<button onclick="save()">Save</button>
-<button onclick="copyText()">Copy</button>
-
-<script>
-
-async function load() {
-			const res = await fetch('/pool')
-			const data = await res.json()
-			document.getElementById('text').value = data.content
-}
-
-async function save() {
-			const content = document.getElementById('text').value
-
-			await fetch('/pool', {
-				method: 'POST',
-				headers: {'Content-Type': 'application/json'},
-				body: JSON.stringify({content})
-			})
-}
-
-function copyText() {
-			const text = document.getElementById('text')
-			text.select()
-			document.execCommand('copy')
-}
-
-load()
-
-</script>
-
-</body>
-</html>
-`)
 	}
 }

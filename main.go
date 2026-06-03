@@ -17,17 +17,16 @@ func main() {
 	http.HandleFunc("/api/ping", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "pong")
 	})
-	http.HandleFunc("/api/pool", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
+	http.HandleFunc("/api/pool", withAuth(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
 			GetPoolHandler(db)(w, r)
-			return
-		}
-		if r.Method == "POST" {
+		case http.MethodPost:
 			SavePoolHandler(db)(w, r)
-			return
+		default:
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	})
+	}))
 
 	fileServer := http.FileServer(http.Dir("./web"))
 	http.Handle("/", fileServer)

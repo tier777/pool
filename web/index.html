@@ -43,6 +43,30 @@
         class="bg-bg text-primary md:h-auto h-[100dvh] flex flex-col items-center"
     >
         <div
+            id="auth-gate"
+            class="fixed inset-0 bg-bg flex items-center justify-center z-50 hidden"
+        >
+            <div class="w-full max-w-xl p-6">
+                <h1 class="text-6xl font-bold leading-none mb-6 tracking-tight">
+                    Po0l
+                </h1>
+                <input
+                    id="password"
+                    type="password"
+                    autocomplete="current-password"
+                    class="w-full border-[3px] border-primary p-4 bg-transparent outline-none text-lg mb-4"
+                    placeholder="Password"
+                />
+                <button
+                    id="unlock"
+                    class="w-full border-[3px] border-primary py-4 text-xl font-bold uppercase active:bg-primary active:text-bg transition-colors"
+                >
+                    Unlock
+                </button>
+            </div>
+        </div>
+
+        <div
             class="w-full max-w-xl p-6 flex flex-col h-full md:h-auto md:mt-10"
         >
             <h1 class="text-6xl font-bold leading-none mb-1 tracking-tight">
