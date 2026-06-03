@@ -3,6 +3,7 @@ const AUTH_KEY = "pool_token";
 let timeout = null;
 let isTyping = false;
 let pollInterval = null;
+let lastServerAt = 0;
 
 function getToken() {
   return sessionStorage.getItem(AUTH_KEY);
@@ -62,26 +63,39 @@ async function load() {
   const res = await apiFetch("/api/pool");
   const data = await res.json();
 
-  document.getElementById("text").value = data.content;
+  if (data.updated_at <= lastServerAt) {
+    return;
+  }
+
+  const text = document.getElementById("text");
+  if (text.value !== data.content) {
+    text.value = data.content;
+  }
+  lastServerAt = data.updated_at;
 }
 
 async function save() {
   const content = document.getElementById("text").value;
 
+  isTyping = true;
   showStatus("saving");
 
   try {
-    await apiFetch("/api/pool", {
+    const res = await apiFetch("/api/pool", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ content }),
     });
 
+    const data = await res.json();
+    lastServerAt = data.updated_at;
     showStatus("saved");
   } catch (err) {
     if (err.message !== "unauthorized") {
       showStatus("error");
     }
+  } finally {
+    isTyping = false;
   }
 }
 
@@ -91,22 +105,48 @@ function debounceSave() {
   isTyping = true;
   showStatus("saving");
 
-  timeout = setTimeout(() => {
-    isTyping = false;
-    save();
-  }, 500);
+  timeout = setTimeout(save, 500);
 }
 
-function showStatus(text) {
+const STATUS_LABELS = {
+  saved: "[saved ✓]",
+  saving: "[saving...]",
+  error: "[error X]",
+  copied: "[copied !]",
+};
+
+let statusTimer = null;
+let statusSeq = 0;
+let lastStatusKey = "saved";
+
+function showStatus(key) {
   const el = document.getElementById("status");
-  if (el.innerText.includes(text)) {
+  const label = STATUS_LABELS[key] ?? `[${key}]`;
+
+  if (key === lastStatusKey && el.textContent === label) {
     return;
   }
-  el.style.opacity = 0;
-  setTimeout(() => {
-    el.innerText = `[${text}]`;
-    el.style.opacity = 1;
-  }, 100);
+
+  const prevKey = lastStatusKey;
+  lastStatusKey = key;
+
+  clearTimeout(statusTimer);
+  const seq = ++statusSeq;
+
+  const apply = () => {
+    if (seq !== statusSeq) return;
+    el.textContent = label;
+    el.style.opacity = "1";
+  };
+
+  // saving → saved/error: swap without a second fade-out
+  if (prevKey === "saving" && (key === "saved" || key === "error")) {
+    apply();
+    return;
+  }
+
+  el.style.opacity = "0";
+  statusTimer = setTimeout(apply, 40);
 }
 
 async function copyText() {
