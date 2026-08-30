@@ -1,21 +1,34 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 )
 
 func main() {
-	if os.Getenv("APP_PASSWORD") == "" {
-		log.Fatal("Environment variable APP_PASSWORD is not set")
+	password, err := loadPassword()
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	db := InitDB()
+	dataPath := os.Getenv("DATA_PATH")
+	if dataPath == "" {
+		dataPath = "./data.db"
+	}
+	db := InitDB(dataPath)
+	defer db.Close()
 
-	http.HandleFunc("/api/ping", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/ping", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			w.Header().Set("Allow", "GET, HEAD")
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -23,7 +36,7 @@ func main() {
 		}
 		fmt.Fprint(w, "pong")
 	})
-	http.HandleFunc("/api/pool", withAuth(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/pool", withAuth(password, func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			GetPoolHandler(db)(w, r)
@@ -36,18 +49,22 @@ func main() {
 	}))
 
 	fileServer := http.FileServer(http.Dir("./web"))
-	http.Handle("/", fileServer)
+	mux.Handle("/", fileServer)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	fmt.Printf("Server started and listening on port %s\n", port)
+	bindAddress := os.Getenv("BIND_ADDRESS")
+	if bindAddress == "" {
+		bindAddress = "127.0.0.1"
+	}
+	address := net.JoinHostPort(bindAddress, port)
 
 	server := &http.Server{
-		Addr:              ":" + port,
-		Handler:           securityHeaders(http.DefaultServeMux),
+		Addr:              address,
+		Handler:           securityHeaders(mux),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      10 * time.Second,
@@ -55,9 +72,40 @@ func main() {
 		MaxHeaderBytes:    1 << 20,
 	}
 
-	err := server.ListenAndServe()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	serverErrors := make(chan error, 1)
+	go func() {
+		serverErrors <- server.ListenAndServe()
+	}()
 
-	if err != nil {
-		log.Fatal("Server panic: ", err)
+	log.Printf("Server started and listening on %s", address)
+	select {
+	case err := <-serverErrors:
+		if !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal("Server failed: ", err)
+		}
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdownCtx); err != nil {
+			log.Printf("Graceful shutdown failed: %v", err)
+			server.Close()
+		}
 	}
+}
+
+func loadPassword() (string, error) {
+	password := os.Getenv("APP_PASSWORD")
+	if path := os.Getenv("APP_PASSWORD_FILE"); path != "" {
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return "", fmt.Errorf("read APP_PASSWORD_FILE: %w", err)
+		}
+		password = strings.TrimSpace(string(contents))
+	}
+	if len(password) < 16 {
+		return "", errors.New("APP_PASSWORD or APP_PASSWORD_FILE must contain at least 16 characters")
+	}
+	return password, nil
 }

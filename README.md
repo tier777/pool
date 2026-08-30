@@ -1,0 +1,74 @@
+# Pool
+
+Pool is a small, single-user shared note: one Go process, one SQLite file, and a self-contained browser client.
+
+## Quick start with Docker Compose
+
+Requirements: Docker Engine with Compose v2 and OpenSSL.
+
+```sh
+mkdir -p secrets
+umask 077
+openssl rand -base64 32 > secrets/app_password
+docker compose up -d --build
+```
+
+Open `http://127.0.0.1:8080` and enter the generated password. The Compose port is bound to localhost on purpose. Set `POOL_PORT` to change the host port.
+
+Compose runs a short-lived `prepare-data` service to give UID 10001 access to the named volume. The long-running `pool` service itself is non-root, read-only outside `/data`, and runs without Linux capabilities.
+
+Do not expose the HTTP port directly to a network. For remote access, put Caddy, nginx, Traefik, or another maintained reverse proxy in front of `127.0.0.1:8080`, terminate HTTPS there, and enable HSTS there after HTTPS is working. The browser sends the shared password with API requests, so plain HTTP is safe only on the local machine.
+
+## Configuration
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `APP_PASSWORD_FILE` | unset natively | Preferred path to a password file. Compose mounts `/run/secrets/app_password`. |
+| `APP_PASSWORD` | unset | Direct password fallback for native runs. Minimum 16 characters. |
+| `BIND_ADDRESS` | `127.0.0.1` | Listen address. Compose sets `0.0.0.0` inside the container only. |
+| `PORT` | `8080` | Listen port. |
+| `DATA_PATH` | `./data.db` | SQLite database path. Compose uses `/data/pool.db`. |
+
+For a native run, install Go 1.26.6 or newer, then run:
+
+```sh
+APP_PASSWORD_FILE=/absolute/path/to/password go run .
+```
+
+## Operations
+
+Check health:
+
+```sh
+docker compose ps
+curl --fail http://127.0.0.1:8080/api/ping
+```
+
+Create a consistent backup by stopping writes before copying the database:
+
+```sh
+mkdir -p backups
+docker compose stop pool
+docker compose cp pool:/data/pool.db ./backups/pool.db
+docker compose start pool
+```
+
+Restore a backup into the named volume:
+
+```sh
+docker compose down
+docker run --rm \
+  --volume pool-data:/data \
+  --volume "$PWD/backups:/backup:ro" \
+  alpine:3.24 sh -c 'cp /backup/pool.db /data/pool.db && chown 10001:10001 /data/pool.db && chmod 600 /data/pool.db'
+docker compose up -d
+```
+
+Upgrade only after taking a backup:
+
+```sh
+git pull --ff-only
+docker compose up -d --build
+```
+
+The server handles `SIGTERM` with a ten-second graceful shutdown, so normal Compose stop and upgrade operations close SQLite cleanly.

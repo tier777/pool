@@ -8,8 +8,7 @@ import (
 )
 
 func TestWithAuthLocksOutRepeatedFailures(t *testing.T) {
-	t.Setenv("APP_PASSWORD", "correct horse battery staple")
-	handler := withAuth(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	handler := withAuth("correct horse battery staple", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
 
 	for i := 0; i < maxAuthFailures; i++ {
 		req := httptest.NewRequest(http.MethodGet, "/api/pool", nil)
