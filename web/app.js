@@ -26,8 +26,20 @@ function authHeaders(extra = {}) {
   return headers;
 }
 
-function showAuthGate() {
-  document.getElementById("auth-gate").classList.remove("hidden");
+function showAuthGate(message = "") {
+  const gate = document.getElementById("auth-gate");
+  const main = document.querySelector("main");
+  const password = document.getElementById("password");
+  const error = document.getElementById("auth-error");
+
+  gate.classList.remove("hidden");
+  main.inert = true;
+  main.setAttribute("aria-hidden", "true");
+  error.textContent = message;
+  error.hidden = !message;
+  password.setAttribute("aria-invalid", String(Boolean(message)));
+  requestAnimationFrame(() => password.focus());
+
   if (pollInterval) {
     clearInterval(pollInterval);
     pollInterval = null;
@@ -36,6 +48,12 @@ function showAuthGate() {
 
 function hideAuthGate() {
   document.getElementById("auth-gate").classList.add("hidden");
+  const main = document.querySelector("main");
+  main.inert = false;
+  main.removeAttribute("aria-hidden");
+  document.getElementById("auth-error").hidden = true;
+  document.getElementById("password").setAttribute("aria-invalid", "false");
+  document.getElementById("text").focus();
 }
 
 async function apiFetch(url, options = {}) {
@@ -46,12 +64,13 @@ async function apiFetch(url, options = {}) {
 
   if (res.status === 401) {
     clearToken();
-    showAuthGate();
-    throw new Error("unauthorized");
+    showAuthGate("Password required.");
   }
 
   if (!res.ok) {
-    throw new Error("request failed");
+    const error = new Error("request failed");
+    error.status = res.status;
+    throw error;
   }
 
   return res;
@@ -91,9 +110,7 @@ async function save() {
     lastServerAt = data.updated_at;
     showStatus("saved");
   } catch (err) {
-    if (err.message !== "unauthorized") {
-      showStatus("error");
-    }
+    showStatus(err.status === 413 ? "tooLarge" : err.status === 429 ? "locked" : "error");
   } finally {
     isTyping = false;
   }
@@ -109,9 +126,12 @@ function debounceSave() {
 }
 
 const STATUS_LABELS = {
+  loading: "[loading…]",
   saved: "[saved ✓]",
-  saving: "[saving...]",
+  saving: "[saving…]",
   error: "[error X]",
+  locked: "[try later]",
+  tooLarge: "[too large]",
   copied: "[copied !]",
 };
 
@@ -170,22 +190,42 @@ function clearText() {
 
 function startPolling() {
   if (pollInterval) return;
-  pollInterval = setInterval(load, 2000);
+  pollInterval = setInterval(() => {
+    load().catch((err) => {
+      if (err.status !== 401) {
+        showStatus(err.status === 429 ? "locked" : "error");
+      }
+    });
+  }, 2000);
 }
 
 async function unlock() {
-  const password = document.getElementById("password").value;
-  if (!password) return;
+  const input = document.getElementById("password");
+  const button = document.getElementById("unlock");
+  const password = input.value;
+  if (!password || button.disabled) return;
 
+  button.disabled = true;
   setToken(password);
 
   try {
     await load();
+    input.value = "";
     hideAuthGate();
+    showStatus("saved");
     startPolling();
-  } catch {
+  } catch (err) {
     clearToken();
-    document.getElementById("password").value = "";
+    input.value = "";
+    const message =
+      err.status === 401
+        ? "Wrong password. Try again."
+        : err.status === 429
+          ? "Too many attempts. Try again later."
+          : "Cannot reach Pool. Check the connection and retry.";
+    showAuthGate(message);
+  } finally {
+    button.disabled = false;
   }
 }
 
@@ -198,20 +238,39 @@ async function init() {
   try {
     await load();
     hideAuthGate();
+    showStatus("saved");
     startPolling();
-  } catch {
-    showAuthGate();
+  } catch (err) {
+    if (err.status !== 401) {
+      showAuthGate(
+        err.status === 429
+          ? "Too many attempts. Try again later."
+          : "Cannot reach Pool. Check the connection and retry.",
+      );
+    }
   }
 }
 
 // events
-document.addEventListener("touchstart", () => {}, true);
 document.getElementById("text").addEventListener("input", debounceSave);
 document.getElementById("copy").onclick = copyText;
 document.getElementById("clear").onclick = clearText;
 document.getElementById("unlock").onclick = unlock;
 document.getElementById("password").addEventListener("keydown", (e) => {
   if (e.key === "Enter") unlock();
+});
+document.getElementById("auth-gate").addEventListener("keydown", (e) => {
+  if (e.key !== "Tab") return;
+
+  const password = document.getElementById("password");
+  const unlock = document.getElementById("unlock");
+  if (e.shiftKey && document.activeElement === password) {
+    e.preventDefault();
+    unlock.focus();
+  } else if (!e.shiftKey && document.activeElement === unlock) {
+    e.preventDefault();
+    password.focus();
+  }
 });
 
 init();

@@ -66,7 +66,9 @@ func TestSecurityHeaders(t *testing.T) {
 	handler.ServeHTTP(res, httptest.NewRequest(http.MethodGet, "/", nil))
 
 	for _, name := range []string{
+		"Content-Security-Policy",
 		"Cross-Origin-Opener-Policy",
+		"Cross-Origin-Resource-Policy",
 		"Permissions-Policy",
 		"Referrer-Policy",
 		"X-Content-Type-Options",
