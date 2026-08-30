@@ -17,7 +17,9 @@ Open `http://127.0.0.1:8080` and enter the generated password. The Compose port 
 
 Compose runs a short-lived `prepare-data` service to give UID 10001 access to the named volume. The long-running `pool` service itself is non-root, read-only outside `/data`, and runs without Linux capabilities.
 
-Do not expose the HTTP port directly to a network. For remote access, put Caddy, nginx, Traefik, or another maintained reverse proxy in front of `127.0.0.1:8080`, terminate HTTPS there, and enable HSTS there after HTTPS is working. The browser sends the shared password with API requests, so plain HTTP is safe only on the local machine.
+Do not expose the HTTP port directly to a network. For remote access, put Caddy, nginx, Traefik, or another maintained reverse proxy in front of `127.0.0.1:8080`, terminate HTTPS there, and enable HSTS there after HTTPS is working. The browser sends the shared password during login, so plain HTTP is safe only on the local machine.
+
+Successful login creates an eight-hour server-side session. The browser keeps only an `HttpOnly`, `SameSite=Strict` cookie; the cookie is `Secure` through HTTPS and intentionally omits `Secure` only for loopback HTTP development. Logging out, session expiry, or restarting Pool revokes the session.
 
 ## Configuration
 

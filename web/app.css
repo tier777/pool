@@ -164,6 +164,20 @@ main {
     min-width: 0;
 }
 
+@media (max-width: 30rem) {
+    .actions {
+        flex-wrap: wrap;
+    }
+
+    .actions button {
+        flex-basis: calc(50% - 0.5rem);
+    }
+
+    #logout {
+        flex-basis: 100%;
+    }
+}
+
 .sr-only {
     clip: rect(0, 0, 0, 0);
     clip-path: inset(50%);
