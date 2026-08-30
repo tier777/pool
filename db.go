@@ -3,16 +3,18 @@ package main
 import (
 	"database/sql"
 	"log"
+	"os"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
 
-func InitDB() *sql.DB {
-	db, err := sql.Open("sqlite", "./data.db")
+func InitDB(path string) *sql.DB {
+	db, err := sql.Open("sqlite", path)
 	if err != nil {
 		panic(err)
 	}
+	db.SetMaxOpenConns(1)
 
 	query := `
 		CREATE TABLE IF NOT EXISTS pool (
@@ -27,6 +29,9 @@ func InitDB() *sql.DB {
 	}
 
 	migrateUpdatedAt(db)
+	if err := os.Chmod(path, 0o600); err != nil {
+		log.Fatal("failed to secure database permissions:", err)
+	}
 
 	return db
 }

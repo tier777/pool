@@ -36,3 +36,5 @@ Thumbs.db
 deploy.sh
 deploy-web.sh
 app
+backups/
+secrets/

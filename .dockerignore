@@ -1,0 +1,13 @@
+.git
+.github
+.DS_Store
+*.db
+*.sqlite
+*.sqlite3
+app
+backups
+deploy.sh
+deploy-web.sh
+graphify-out
+pool
+secrets

@@ -10,7 +10,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -37,10 +36,10 @@ type saveRequest struct {
 	Content string `json:"content"`
 }
 
-func withAuth(next http.HandlerFunc) http.HandlerFunc {
+func withAuth(password string, next http.HandlerFunc) http.HandlerFunc {
 	var mu sync.Mutex
 	attempts := make(map[string]authAttempt)
-	expected := sha256.Sum256([]byte("Bearer " + os.Getenv("APP_PASSWORD")))
+	expected := sha256.Sum256([]byte("Bearer " + password))
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
