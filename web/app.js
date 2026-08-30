@@ -1,30 +1,8 @@
-const AUTH_KEY = "pool_token";
-
 let timeout = null;
 let isTyping = false;
 let pollInterval = null;
 let lastServerAt = 0;
-
-function getToken() {
-  return sessionStorage.getItem(AUTH_KEY);
-}
-
-function setToken(token) {
-  sessionStorage.setItem(AUTH_KEY, token);
-}
-
-function clearToken() {
-  sessionStorage.removeItem(AUTH_KEY);
-}
-
-function authHeaders(extra = {}) {
-  const headers = { ...extra };
-  const token = getToken();
-  if (token) {
-    headers.Authorization = "Bearer " + token;
-  }
-  return headers;
-}
+let csrfToken = "";
 
 function showAuthGate(message = "") {
   const gate = document.getElementById("auth-gate");
@@ -57,13 +35,19 @@ function hideAuthGate() {
 }
 
 async function apiFetch(url, options = {}) {
+  const method = (options.method || "GET").toUpperCase();
+  const headers = { ...options.headers };
+  if (!["GET", "HEAD", "OPTIONS"].includes(method) && csrfToken) {
+    headers["X-CSRF-Token"] = csrfToken;
+  }
   const res = await fetch(url, {
     ...options,
-    headers: authHeaders(options.headers),
+    credentials: "same-origin",
+    headers,
   });
 
   if (res.status === 401) {
-    clearToken();
+    csrfToken = "";
     showAuthGate("Password required.");
   }
 
@@ -206,16 +190,27 @@ async function unlock() {
   if (!password || button.disabled) return;
 
   button.disabled = true;
-  setToken(password);
 
   try {
-    await load();
+    const res = await fetch("/api/login", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
     input.value = "";
+    if (!res.ok) {
+      const error = new Error("login failed");
+      error.status = res.status;
+      throw error;
+    }
+    csrfToken = (await res.json()).csrf_token;
+    await load();
     hideAuthGate();
     showStatus("saved");
     startPolling();
   } catch (err) {
-    clearToken();
+    csrfToken = "";
     input.value = "";
     const message =
       err.status === 401
@@ -230,12 +225,14 @@ async function unlock() {
 }
 
 async function init() {
-  if (!getToken()) {
-    showAuthGate();
-    return;
-  }
-
   try {
+    const res = await fetch("/api/session", { credentials: "same-origin" });
+    if (!res.ok) {
+      const error = new Error("session unavailable");
+      error.status = res.status;
+      throw error;
+    }
+    csrfToken = (await res.json()).csrf_token;
     await load();
     hideAuthGate();
     showStatus("saved");
@@ -251,10 +248,28 @@ async function init() {
   }
 }
 
+async function logout() {
+  const button = document.getElementById("logout");
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    await apiFetch("/api/logout", { method: "POST" });
+    csrfToken = "";
+    lastServerAt = 0;
+    document.getElementById("text").value = "";
+    showAuthGate();
+  } catch (err) {
+    if (err.status !== 401) showStatus("error");
+  } finally {
+    button.disabled = false;
+  }
+}
+
 // events
 document.getElementById("text").addEventListener("input", debounceSave);
 document.getElementById("copy").onclick = copyText;
 document.getElementById("clear").onclick = clearText;
+document.getElementById("logout").onclick = logout;
 document.getElementById("unlock").onclick = unlock;
 document.getElementById("password").addEventListener("keydown", (e) => {
   if (e.key === "Enter") unlock();

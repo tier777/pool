@@ -26,6 +26,7 @@ func main() {
 	}
 	db := InitDB(dataPath)
 	defer db.Close()
+	auth := newAuthManager(password)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +37,10 @@ func main() {
 		}
 		fmt.Fprint(w, "pong")
 	})
-	mux.HandleFunc("/api/pool", withAuth(password, func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/login", auth.login)
+	mux.HandleFunc("/api/session", auth.withSession(auth.sessionInfo))
+	mux.HandleFunc("/api/logout", auth.withSession(auth.logout))
+	mux.HandleFunc("/api/pool", auth.withSession(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
 			GetPoolHandler(db)(w, r)
