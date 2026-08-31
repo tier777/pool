@@ -1,6 +1,6 @@
 # Pool
 
-Pool is a small, single-user shared note: one Go process, one SQLite file, and a self-contained browser client.
+Pool is a small, single-user shared note and file drop: one Go process, one SQLite database, one adjacent file directory, and a self-contained browser client.
 
 ## Quick start with Docker Compose
 
@@ -46,12 +46,12 @@ docker compose ps
 curl --fail http://127.0.0.1:8080/api/ping
 ```
 
-Create a consistent backup by stopping writes before copying the database:
+Create a consistent backup by stopping writes before copying the database and uploaded files together:
 
 ```sh
 mkdir -p backups
 docker compose stop pool
-docker compose cp pool:/data/pool.db ./backups/pool.db
+docker compose cp pool:/data/. ./backups/data
 docker compose start pool
 ```
 
@@ -62,7 +62,7 @@ docker compose down
 docker run --rm \
   --volume pool-data:/data \
   --volume "$PWD/backups:/backup:ro" \
-  alpine:3.24 sh -c 'cp /backup/pool.db /data/pool.db && chown 10001:10001 /data/pool.db && chmod 600 /data/pool.db'
+  alpine:3.24 sh -c 'cp -a /backup/data/. /data/ && chown -R 10001:10001 /data && chmod -R u=rwX,go= /data'
 docker compose up -d
 ```
 

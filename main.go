@@ -26,6 +26,10 @@ func main() {
 	}
 	db := InitDB(dataPath)
 	defer db.Close()
+	filesPath := dataPath + ".files"
+	if err := os.MkdirAll(filesPath, 0o700); err != nil {
+		log.Fatal("failed to create files directory: ", err)
+	}
 	auth := newAuthManager(password)
 
 	mux := http.NewServeMux()
@@ -51,6 +55,8 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
+	mux.HandleFunc("/api/files", auth.withSession(FilesHandler(db, filesPath)))
+	mux.HandleFunc("/api/files/", auth.withSession(FileHandler(db, filesPath)))
 
 	fileServer := http.FileServer(http.Dir("./web"))
 	mux.Handle("/", fileServer)
@@ -70,8 +76,8 @@ func main() {
 		Addr:              address,
 		Handler:           securityHeaders(mux),
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
+		ReadTimeout:       0,
+		WriteTimeout:      0,
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    1 << 20,
 	}

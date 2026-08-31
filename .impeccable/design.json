@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-31T13:00:00Z",
+  "title": "Design System: Pool",
+  "extensions": {
+    "colorMeta": {
+      "paper": { "role": "neutral", "displayName": "Warm Paper", "canonical": "#efd09e" },
+      "ink": { "role": "primary", "displayName": "Utility Ink", "canonical": "#272727" },
+      "muted-ink": { "role": "neutral", "displayName": "Muted Ink", "canonical": "#66583f" },
+      "error": { "role": "error", "displayName": "Error Red", "canonical": "#c92f24" }
+    },
+    "breakpoints": [
+      { "name": "desktop", "value": "48rem" }
+    ]
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "The Shared Clipboard",
+    "overview": "A single warm sheet with physical utility-label clarity, hard ink rules, and no decorative depth.",
+    "keyCharacteristics": ["single column", "square controls", "flat surfaces", "direct states"],
+    "rules": [
+      { "name": "One Error Voice", "body": "Red is reserved for actionable failures.", "section": "colors" }
+    ],
+    "dos": ["Keep actions explicit and keyboard reachable."],
+    "donts": ["Do not add shadows, gradients, rounded cards, or decorative icons."]
+  }
+}

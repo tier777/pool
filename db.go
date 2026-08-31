@@ -22,6 +22,13 @@ func InitDB(path string) *sql.DB {
 			content TEXT,
 			updated_at INTEGER NOT NULL DEFAULT 0
 		);
+		CREATE TABLE IF NOT EXISTS files (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			content_type TEXT NOT NULL,
+			size INTEGER NOT NULL,
+			created_at INTEGER NOT NULL
+		);
 		`
 	_, err = db.Exec(query)
 	if err != nil {

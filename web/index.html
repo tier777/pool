@@ -3,85 +3,51 @@
     <head>
         <meta charset="utf-8" />
         <title>Pool</title>
-
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1"
-        />
-        <meta name="theme-color" content="#EFD09E" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#efd09e" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="/app.css" />
     </head>
-
     <body>
-        <div
-            id="auth-gate"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="auth-title"
-        >
+        <div id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-title">
             <div class="auth-card">
-                <h1 id="auth-title">Po0l</h1>
+                <h1 id="auth-title">Pool</h1>
                 <label for="password" class="sr-only">Password</label>
-                <input
-                    id="password"
-                    type="password"
-                    autocomplete="current-password"
-                    aria-describedby="auth-error"
-                    aria-invalid="false"
-                    placeholder="Password"
-                />
+                <input id="password" type="password" autocomplete="current-password" aria-describedby="auth-error" aria-invalid="false" placeholder="Password" />
                 <p id="auth-error" role="alert" hidden></p>
-                <button
-                    id="unlock"
-                    type="button"
-                    aria-label="Unlock with password"
-                >
-                    Unlock
-                </button>
+                <button id="unlock" type="button">Unlock</button>
             </div>
         </div>
 
-        <main
-            aria-hidden="true"
-            inert
-        >
-            <h1>Po0l</h1>
-            <div id="status" role="status" aria-live="polite">[loading…]</div>
-
-            <label for="text" class="sr-only">Shared notes</label>
-            <textarea
-                id="text"
-                placeholder=""
-            ></textarea>
-
-            <div class="actions">
-                <button
-                    id="clear"
-                    type="button"
-                    aria-label="Clear all text"
-                >
-                    Clear
-                </button>
-
-                <button
-                    id="copy"
-                    type="button"
-                    aria-label="Copy text to clipboard"
-                >
-                    Copy
-                </button>
-
-                <button
-                    id="logout"
-                    type="button"
-                    aria-label="End this session"
-                >
-                    Logout
-                </button>
+        <main aria-hidden="true" inert>
+            <!--
+              THESIS: A shared clipboard, not a dashboard; content starts immediately.
+              OWN-WORLD: Warm paper, heavy ink rules, square controls, one red error voice.
+              STORY: See failures and files, edit the note, then add more material.
+              FIRST VIEWPORT: File stack above a large Pool title, editor, paired actions, upload control.
+              FORM: Pinned issue #13 mobile composition; no concept seed required.
+            -->
+            <div class="utility-row">
+                <p id="global-error" role="alert" hidden></p>
+                <button id="logout" class="text-button" type="button">Log out</button>
             </div>
+            <section id="files-section" aria-label="Shared files">
+                <div id="files"></div>
+            </section>
+            <h1>Pool</h1>
+            <div id="status" role="status" aria-live="polite">[loading…]</div>
+            <label for="text" class="sr-only">Shared notes</label>
+            <textarea id="text"></textarea>
+            <div class="actions">
+                <button id="clear" type="button">Clear</button>
+                <button id="copy" type="button">Copy</button>
+            </div>
+            <label id="drop-zone" for="file-input">
+                <input id="file-input" type="file" multiple hidden />
+                <span class="upload-label"><span aria-hidden="true">↑</span> Add files</span>
+                <span class="drop-label">Drop files here</span>
+            </label>
         </main>
-
         <script src="/app.js"></script>
     </body>
 </html>
