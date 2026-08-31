@@ -3,17 +3,7 @@ let isTyping = false;
 let pollInterval = null;
 let lastServerAt = 0;
 let csrfToken = "";
-let statusTimer = null;
-let statusSeq = 0;
-let lastStatusKey = "saved";
 let dragDepth = 0;
-
-const STATUS_LABELS = {
-  loading: "[loading…]",
-  saved: "[saved ✓]",
-  saving: "[saving…]",
-  copied: "[copied !]",
-};
 
 function showAuthGate(message = "") {
   const gate = document.getElementById("auth-gate");
@@ -77,7 +67,6 @@ async function load() {
 
 async function save() {
   isTyping = true;
-  showStatus("saving");
   try {
     const res = await apiFetch("/api/pool", {
       method: "POST",
@@ -85,7 +74,6 @@ async function save() {
       body: JSON.stringify({ content: document.getElementById("text").value }),
     });
     lastServerAt = (await res.json()).updated_at;
-    showStatus("saved");
     showGlobalError();
   } catch (error) {
     showGlobalError(error.status === 413 ? "note too large" : error.status === 429 ? "try again later" : "note could not be saved");
@@ -97,26 +85,7 @@ async function save() {
 function debounceSave() {
   clearTimeout(timeout);
   isTyping = true;
-  showStatus("saving");
   timeout = setTimeout(save, 500);
-}
-
-function showStatus(key) {
-  const el = document.getElementById("status");
-  const label = STATUS_LABELS[key] ?? `[${key}]`;
-  if (key === lastStatusKey && el.textContent === label) return;
-  const prevKey = lastStatusKey;
-  lastStatusKey = key;
-  clearTimeout(statusTimer);
-  const seq = ++statusSeq;
-  const apply = () => {
-    if (seq !== statusSeq) return;
-    el.textContent = label;
-    el.style.opacity = "1";
-  };
-  if (prevKey === "saving" && key === "saved") return apply();
-  el.style.opacity = "0";
-  statusTimer = setTimeout(apply, 40);
 }
 
 async function copyText() {
@@ -127,7 +96,6 @@ async function copyText() {
     text.select();
     document.execCommand("copy");
   }
-  showStatus("copied");
 }
 
 function clearText() {
@@ -167,7 +135,7 @@ function renderFiles(files) {
     const remove = document.createElement("button");
     remove.className = "file-action file-delete";
     remove.type = "button";
-    remove.textContent = "×";
+    remove.textContent = "…";
     remove.setAttribute("aria-label", `Delete ${file.name}`);
     remove.title = "Delete";
     remove.onclick = () => deleteFile(file);
@@ -234,7 +202,6 @@ async function unlock() {
     csrfToken = (await res.json()).csrf_token;
     await Promise.all([load(), loadFiles()]);
     hideAuthGate();
-    showStatus("saved");
     showGlobalError();
     startPolling();
   } catch (error) {
@@ -253,36 +220,15 @@ async function init() {
     csrfToken = (await res.json()).csrf_token;
     await Promise.all([load(), loadFiles()]);
     hideAuthGate();
-    showStatus("saved");
     startPolling();
   } catch (error) {
     if (error.status !== 401) showAuthGate(error.status === 429 ? "Too many attempts. Try again later." : "Cannot reach Pool. Check the connection and retry.");
   }
 }
 
-async function logout() {
-  const button = document.getElementById("logout");
-  if (button.disabled) return;
-  button.disabled = true;
-  try {
-    await apiFetch("/api/logout", { method: "POST" });
-    csrfToken = "";
-    lastServerAt = 0;
-    document.getElementById("text").value = "";
-    renderFiles([]);
-    showGlobalError();
-    showAuthGate();
-  } catch (error) {
-    if (error.status !== 401) showGlobalError("logout failed — retry");
-  } finally {
-    button.disabled = false;
-  }
-}
-
 document.getElementById("text").addEventListener("input", debounceSave);
 document.getElementById("copy").onclick = copyText;
 document.getElementById("clear").onclick = clearText;
-document.getElementById("logout").onclick = logout;
 document.getElementById("unlock").onclick = unlock;
 document.getElementById("file-input").addEventListener("change", (event) => uploadFiles(event.target.files));
 document.getElementById("password").addEventListener("keydown", (event) => { if (event.key === "Enter") unlock(); });

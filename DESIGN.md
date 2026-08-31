@@ -8,29 +8,29 @@ colors:
   error: "#c92f24"
 typography:
   display:
-    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    fontSize: "clamp(3.75rem, 15vw, 5.5rem)"
-    fontWeight: 750
-    lineHeight: 0.9
+    fontFamily: "-apple-system, BlinkMacSystemFont, SF Pro Text, Segoe UI, sans-serif"
+    fontSize: "4rem"
+    fontWeight: 700
+    lineHeight: 1.1875
   body:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     fontSize: "1rem"
-    fontWeight: 650
-    lineHeight: 1.25
+    fontWeight: 700
+    lineHeight: 1.2
   control:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    fontSize: "1.25rem"
-    fontWeight: 750
+    fontSize: "1.5rem"
+    fontWeight: 700
     lineHeight: 1.2
   note:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
-    fontSize: "1.05rem"
-    fontWeight: 650
-    lineHeight: 1.35
+    fontSize: "1rem"
+    fontWeight: 700
+    lineHeight: 1.2
   meta:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
     fontSize: "0.875rem"
-    fontWeight: 650
+    fontWeight: 700
     lineHeight: 1.25
   icon:
     fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
@@ -43,12 +43,13 @@ spacing:
   xs: "0.5rem"
   sm: "1rem"
   md: "1.5rem"
+  lg: "2rem"
 components:
   button:
     backgroundColor: "{colors.paper}"
     textColor: "{colors.ink}"
     rounded: "{rounded.square}"
-    padding: "0.875rem 1rem"
+    padding: "0.75rem 1rem"
 ---
 
 # Design System: Pool
@@ -65,11 +66,11 @@ Warm paper is the field; nearly black ink owns structure and action; muted ink s
 
 ## Typography
 
-System UI typography keeps the tool immediate and dependency-free. The display is oversized and tightly set; note text is 1.05rem, controls use 1.25rem, metadata uses 0.875rem, and action glyphs range from 1.25rem to 1.75rem.
+System UI typography keeps the tool immediate and dependency-free. The 64px display, 16px note text, 24px controls, and 14px metadata follow the named Figma frames.
 
 ## Layout
 
-A single narrow column uses 2rem side gutters on mobile and caps at 36rem. Files precede the note, controls align to a two-column grid, and the editor grows with the viewport. Desktop preserves the same object-like composition rather than becoming a dashboard.
+A single 393px composition uses 32px side gutters, a fixed 256px editor, and the 8/16/24/32 spacing scale. The title and error line precede the note, controls align to a two-column grid, and files or the add-files target follow the actions. Desktop preserves the same object-like composition rather than becoming a dashboard.
 
 ## Elevation & Depth
 
@@ -81,7 +82,7 @@ All interactive and content surfaces are square, with 3–4px ink borders. Dashe
 
 ## Components
 
-Buttons are wide, bold, and sentence case. Focus and hover invert ink and paper. File rows use filename and size at left with direct actions at right. Global errors are plain red text above the affected content.
+Buttons are wide, bold, and sentence case. Button focus and hover invert ink and paper; text fields retain their single static border without an added focus outline or fill. File rows use filename and size at left with direct actions at right. Global errors occupy the reserved line below the title. Saving, loading, and copied states are not displayed.
 
 ## Do's and Don'ts
 
