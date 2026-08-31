@@ -3,13 +3,23 @@ let isTyping = false;
 let pollInterval = null;
 let lastServerAt = 0;
 let csrfToken = "";
+let statusTimer = null;
+let statusSeq = 0;
+let lastStatusKey = "saved";
+let dragDepth = 0;
+
+const STATUS_LABELS = {
+  loading: "[loading…]",
+  saved: "[saved ✓]",
+  saving: "[saving…]",
+  copied: "[copied !]",
+};
 
 function showAuthGate(message = "") {
   const gate = document.getElementById("auth-gate");
   const main = document.querySelector("main");
   const password = document.getElementById("password");
   const error = document.getElementById("auth-error");
-
   gate.classList.remove("hidden");
   main.inert = true;
   main.setAttribute("aria-hidden", "true");
@@ -17,11 +27,8 @@ function showAuthGate(message = "") {
   error.hidden = !message;
   password.setAttribute("aria-invalid", String(Boolean(message)));
   requestAnimationFrame(() => password.focus());
-
-  if (pollInterval) {
-    clearInterval(pollInterval);
-    pollInterval = null;
-  }
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = null;
 }
 
 function hideAuthGate() {
@@ -34,67 +41,54 @@ function hideAuthGate() {
   document.getElementById("text").focus();
 }
 
+function showGlobalError(message = "") {
+  const error = document.getElementById("global-error");
+  error.textContent = message ? `[${message}]` : "";
+  error.hidden = !message;
+}
+
 async function apiFetch(url, options = {}) {
   const method = (options.method || "GET").toUpperCase();
   const headers = { ...options.headers };
   if (!["GET", "HEAD", "OPTIONS"].includes(method) && csrfToken) {
     headers["X-CSRF-Token"] = csrfToken;
   }
-  const res = await fetch(url, {
-    ...options,
-    credentials: "same-origin",
-    headers,
-  });
-
+  const res = await fetch(url, { ...options, credentials: "same-origin", headers });
   if (res.status === 401) {
     csrfToken = "";
     showAuthGate("Password required.");
   }
-
   if (!res.ok) {
     const error = new Error("request failed");
     error.status = res.status;
     throw error;
   }
-
   return res;
 }
 
 async function load() {
   if (isTyping) return;
-
-  const res = await apiFetch("/api/pool");
-  const data = await res.json();
-
-  if (data.updated_at <= lastServerAt) {
-    return;
-  }
-
+  const data = await (await apiFetch("/api/pool")).json();
+  if (data.updated_at <= lastServerAt) return;
   const text = document.getElementById("text");
-  if (text.value !== data.content) {
-    text.value = data.content;
-  }
+  if (text.value !== data.content) text.value = data.content;
   lastServerAt = data.updated_at;
 }
 
 async function save() {
-  const content = document.getElementById("text").value;
-
   isTyping = true;
   showStatus("saving");
-
   try {
     const res = await apiFetch("/api/pool", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content }),
+      body: JSON.stringify({ content: document.getElementById("text").value }),
     });
-
-    const data = await res.json();
-    lastServerAt = data.updated_at;
+    lastServerAt = (await res.json()).updated_at;
     showStatus("saved");
-  } catch (err) {
-    showStatus(err.status === 413 ? "tooLarge" : err.status === 429 ? "locked" : "error");
+    showGlobalError();
+  } catch (error) {
+    showGlobalError(error.status === 413 ? "note too large" : error.status === 429 ? "try again later" : "note could not be saved");
   } finally {
     isTyping = false;
   }
@@ -102,68 +96,37 @@ async function save() {
 
 function debounceSave() {
   clearTimeout(timeout);
-
   isTyping = true;
   showStatus("saving");
-
   timeout = setTimeout(save, 500);
 }
-
-const STATUS_LABELS = {
-  loading: "[loading…]",
-  saved: "[saved ✓]",
-  saving: "[saving…]",
-  error: "[error X]",
-  locked: "[try later]",
-  tooLarge: "[too large]",
-  copied: "[copied !]",
-};
-
-let statusTimer = null;
-let statusSeq = 0;
-let lastStatusKey = "saved";
 
 function showStatus(key) {
   const el = document.getElementById("status");
   const label = STATUS_LABELS[key] ?? `[${key}]`;
-
-  if (key === lastStatusKey && el.textContent === label) {
-    return;
-  }
-
+  if (key === lastStatusKey && el.textContent === label) return;
   const prevKey = lastStatusKey;
   lastStatusKey = key;
-
   clearTimeout(statusTimer);
   const seq = ++statusSeq;
-
   const apply = () => {
     if (seq !== statusSeq) return;
     el.textContent = label;
     el.style.opacity = "1";
   };
-
-  // saving → saved/error: swap without a second fade-out
-  if (prevKey === "saving" && (key === "saved" || key === "error")) {
-    apply();
-    return;
-  }
-
+  if (prevKey === "saving" && key === "saved") return apply();
   el.style.opacity = "0";
   statusTimer = setTimeout(apply, 40);
 }
 
 async function copyText() {
-  const content = document.getElementById("text").value;
-
+  const text = document.getElementById("text");
   try {
-    await navigator.clipboard.writeText(content);
+    await navigator.clipboard.writeText(text.value);
   } catch {
-    const text = document.getElementById("text");
     text.select();
     document.execCommand("copy");
   }
-
   showStatus("copied");
 }
 
@@ -172,13 +135,88 @@ function clearText() {
   save();
 }
 
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function renderFiles(files) {
+  const list = document.getElementById("files");
+  list.replaceChildren();
+  for (const file of files) {
+    const row = document.createElement("article");
+    row.className = "file-row";
+    const details = document.createElement("div");
+    details.className = "file-details";
+    const name = document.createElement("strong");
+    name.className = "file-name";
+    name.textContent = file.name;
+    const size = document.createElement("span");
+    size.className = "file-size";
+    size.textContent = formatBytes(file.size);
+    details.append(name, size);
+
+    const download = document.createElement("a");
+    download.className = "file-action";
+    download.href = `/api/files/${file.id}`;
+    download.textContent = "↓";
+    download.setAttribute("aria-label", `Download ${file.name}`);
+    download.title = "Download";
+
+    const remove = document.createElement("button");
+    remove.className = "file-action file-delete";
+    remove.type = "button";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", `Delete ${file.name}`);
+    remove.title = "Delete";
+    remove.onclick = () => deleteFile(file);
+    row.append(details, download, remove);
+    list.append(row);
+  }
+}
+
+async function loadFiles() {
+  renderFiles(await (await apiFetch("/api/files")).json());
+}
+
+async function uploadFiles(files) {
+  const input = document.getElementById("file-input");
+  const dropZone = document.getElementById("drop-zone");
+  input.disabled = true;
+  dropZone.setAttribute("aria-busy", "true");
+  showGlobalError();
+  try {
+    for (const file of files) {
+      const body = new FormData();
+      body.append("file", file);
+      await apiFetch("/api/files", { method: "POST", body });
+    }
+    await loadFiles();
+  } catch (error) {
+    showGlobalError("file upload failed — retry");
+  } finally {
+    input.value = "";
+    input.disabled = false;
+    dropZone.removeAttribute("aria-busy");
+  }
+}
+
+async function deleteFile(file) {
+  try {
+    await apiFetch(`/api/files/${file.id}`, { method: "DELETE" });
+    await loadFiles();
+    showGlobalError();
+  } catch {
+    showGlobalError("file could not be deleted — retry");
+  }
+}
+
 function startPolling() {
   if (pollInterval) return;
   pollInterval = setInterval(() => {
-    load().catch((err) => {
-      if (err.status !== 401) {
-        showStatus(err.status === 429 ? "locked" : "error");
-      }
+    Promise.all([load(), loadFiles()]).catch((error) => {
+      if (error.status !== 401) showGlobalError(error.status === 429 ? "try again later" : "connection failed — retry");
     });
   }, 2000);
 }
@@ -188,37 +226,21 @@ async function unlock() {
   const button = document.getElementById("unlock");
   const password = input.value;
   if (!password || button.disabled) return;
-
   button.disabled = true;
-
   try {
-    const res = await fetch("/api/login", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password }),
-    });
+    const res = await fetch("/api/login", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
     input.value = "";
-    if (!res.ok) {
-      const error = new Error("login failed");
-      error.status = res.status;
-      throw error;
-    }
+    if (!res.ok) throw Object.assign(new Error("login failed"), { status: res.status });
     csrfToken = (await res.json()).csrf_token;
-    await load();
+    await Promise.all([load(), loadFiles()]);
     hideAuthGate();
     showStatus("saved");
+    showGlobalError();
     startPolling();
-  } catch (err) {
+  } catch (error) {
     csrfToken = "";
     input.value = "";
-    const message =
-      err.status === 401
-        ? "Wrong password. Try again."
-        : err.status === 429
-          ? "Too many attempts. Try again later."
-          : "Cannot reach Pool. Check the connection and retry.";
-    showAuthGate(message);
+    showAuthGate(error.status === 401 ? "Wrong password. Try again." : error.status === 429 ? "Too many attempts. Try again later." : "Cannot reach Pool. Check the connection and retry.");
   } finally {
     button.disabled = false;
   }
@@ -227,24 +249,14 @@ async function unlock() {
 async function init() {
   try {
     const res = await fetch("/api/session", { credentials: "same-origin" });
-    if (!res.ok) {
-      const error = new Error("session unavailable");
-      error.status = res.status;
-      throw error;
-    }
+    if (!res.ok) throw Object.assign(new Error("session unavailable"), { status: res.status });
     csrfToken = (await res.json()).csrf_token;
-    await load();
+    await Promise.all([load(), loadFiles()]);
     hideAuthGate();
     showStatus("saved");
     startPolling();
-  } catch (err) {
-    if (err.status !== 401) {
-      showAuthGate(
-        err.status === 429
-          ? "Too many attempts. Try again later."
-          : "Cannot reach Pool. Check the connection and retry.",
-      );
-    }
+  } catch (error) {
+    if (error.status !== 401) showAuthGate(error.status === 429 ? "Too many attempts. Try again later." : "Cannot reach Pool. Check the connection and retry.");
   }
 }
 
@@ -257,35 +269,51 @@ async function logout() {
     csrfToken = "";
     lastServerAt = 0;
     document.getElementById("text").value = "";
+    renderFiles([]);
+    showGlobalError();
     showAuthGate();
-  } catch (err) {
-    if (err.status !== 401) showStatus("error");
+  } catch (error) {
+    if (error.status !== 401) showGlobalError("logout failed — retry");
   } finally {
     button.disabled = false;
   }
 }
 
-// events
 document.getElementById("text").addEventListener("input", debounceSave);
 document.getElementById("copy").onclick = copyText;
 document.getElementById("clear").onclick = clearText;
 document.getElementById("logout").onclick = logout;
 document.getElementById("unlock").onclick = unlock;
-document.getElementById("password").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") unlock();
-});
-document.getElementById("auth-gate").addEventListener("keydown", (e) => {
-  if (e.key !== "Tab") return;
-
+document.getElementById("file-input").addEventListener("change", (event) => uploadFiles(event.target.files));
+document.getElementById("password").addEventListener("keydown", (event) => { if (event.key === "Enter") unlock(); });
+document.getElementById("auth-gate").addEventListener("keydown", (event) => {
+  if (event.key !== "Tab") return;
   const password = document.getElementById("password");
-  const unlock = document.getElementById("unlock");
-  if (e.shiftKey && document.activeElement === password) {
-    e.preventDefault();
-    unlock.focus();
-  } else if (!e.shiftKey && document.activeElement === unlock) {
-    e.preventDefault();
-    password.focus();
-  }
+  const unlockButton = document.getElementById("unlock");
+  if (event.shiftKey && document.activeElement === password) { event.preventDefault(); unlockButton.focus(); }
+  else if (!event.shiftKey && document.activeElement === unlockButton) { event.preventDefault(); password.focus(); }
+});
+
+document.addEventListener("dragenter", (event) => {
+  if (!event.dataTransfer?.types.includes("Files")) return;
+  event.preventDefault();
+  dragDepth += 1;
+  document.getElementById("drop-zone").classList.add("dragging");
+});
+document.addEventListener("dragover", (event) => {
+  if (event.dataTransfer?.types.includes("Files")) event.preventDefault();
+});
+document.addEventListener("dragleave", (event) => {
+  if (!event.dataTransfer?.types.includes("Files")) return;
+  dragDepth = Math.max(0, dragDepth - 1);
+  if (!dragDepth) document.getElementById("drop-zone").classList.remove("dragging");
+});
+document.addEventListener("drop", (event) => {
+  if (!event.dataTransfer?.files.length) return;
+  event.preventDefault();
+  dragDepth = 0;
+  document.getElementById("drop-zone").classList.remove("dragging");
+  uploadFiles(event.dataTransfer.files);
 });
 
 init();

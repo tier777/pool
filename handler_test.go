@@ -1,9 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -176,5 +181,91 @@ func TestSecurityHeaders(t *testing.T) {
 		if res.Header().Get(name) == "" {
 			t.Errorf("missing %s", name)
 		}
+	}
+}
+
+func TestFileUploadDownloadAndDelete(t *testing.T) {
+	dir := t.TempDir()
+	db := InitDB(filepath.Join(dir, "pool.db"))
+	t.Cleanup(func() { db.Close() })
+	filesDir := filepath.Join(dir, "files")
+	if err := os.Mkdir(filesDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "hello.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	part.Write([]byte("hello pool"))
+	writer.Close()
+
+	uploadReq := httptest.NewRequest(http.MethodPost, "/api/files", &body)
+	uploadReq.Header.Set("Content-Type", writer.FormDataContentType())
+	uploadRes := httptest.NewRecorder()
+	FilesHandler(db, filesDir)(uploadRes, uploadReq)
+	if uploadRes.Code != http.StatusCreated {
+		t.Fatalf("upload got %d: %s", uploadRes.Code, uploadRes.Body.String())
+	}
+	var uploaded storedFile
+	if err := json.NewDecoder(uploadRes.Body).Decode(&uploaded); err != nil {
+		t.Fatal(err)
+	}
+	if uploaded.Name != "hello.txt" || uploaded.Size != 10 {
+		t.Fatalf("uploaded file = %#v", uploaded)
+	}
+
+	downloadReq := httptest.NewRequest(http.MethodGet, "/api/files/"+strconv.FormatInt(uploaded.ID, 10), nil)
+	downloadRes := httptest.NewRecorder()
+	FileHandler(db, filesDir)(downloadRes, downloadReq)
+	if downloadRes.Code != http.StatusOK || downloadRes.Body.String() != "hello pool" {
+		t.Fatalf("download got %d: %q", downloadRes.Code, downloadRes.Body.String())
+	}
+	if disposition := downloadRes.Header().Get("Content-Disposition"); !strings.Contains(disposition, "hello.txt") {
+		t.Fatalf("Content-Disposition = %q", disposition)
+	}
+
+	deleteReq := httptest.NewRequest(http.MethodDelete, downloadReq.URL.String(), nil)
+	deleteRes := httptest.NewRecorder()
+	FileHandler(db, filesDir)(deleteRes, deleteReq)
+	if deleteRes.Code != http.StatusNoContent {
+		t.Fatalf("delete got %d: %s", deleteRes.Code, deleteRes.Body.String())
+	}
+
+	missingRes := httptest.NewRecorder()
+	FileHandler(db, filesDir)(missingRes, downloadReq)
+	if missingRes.Code != http.StatusNotFound {
+		t.Fatalf("deleted download got %d, want 404", missingRes.Code)
+	}
+}
+
+func TestFileUploadIsNotCappedAtTenMegabytes(t *testing.T) {
+	dir := t.TempDir()
+	db := InitDB(filepath.Join(dir, "pool.db"))
+	t.Cleanup(func() { db.Close() })
+	filesDir := filepath.Join(dir, "files")
+	if err := os.Mkdir(filesDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "large.bin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(bytes.Repeat([]byte("x"), 11<<20)); err != nil {
+		t.Fatal(err)
+	}
+	writer.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/files", &body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	res := httptest.NewRecorder()
+	FilesHandler(db, filesDir)(res, req)
+	if res.Code != http.StatusCreated {
+		t.Fatalf("11 MB upload got %d: %s", res.Code, res.Body.String())
 	}
 }

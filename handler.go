@@ -10,9 +10,13 @@ import (
 	"errors"
 	"io"
 	"mime"
+	"mime/multipart"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -61,6 +65,13 @@ type loginRequest struct {
 
 type sessionResponse struct {
 	CSRFToken string `json:"csrf_token"`
+}
+
+type storedFile struct {
+	ID        int64  `json:"id"`
+	Name      string `json:"name"`
+	Size      int64  `json:"size"`
+	CreatedAt int64  `json:"created_at"`
 }
 
 func newAuthManager(password string) *authManager {
@@ -378,5 +389,145 @@ func SavePoolHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		writePool(w, Pool{Content: req.Content, UpdatedAt: now})
+	}
+}
+
+func FilesHandler(db *sql.DB, filesDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			rows, err := db.Query(`SELECT id, name, size, created_at FROM files ORDER BY created_at DESC, id DESC`)
+			if err != nil {
+				http.Error(w, "db error", http.StatusInternalServerError)
+				return
+			}
+			defer rows.Close()
+			files := []storedFile{}
+			for rows.Next() {
+				var file storedFile
+				if err := rows.Scan(&file.ID, &file.Name, &file.Size, &file.CreatedAt); err != nil {
+					http.Error(w, "db error", http.StatusInternalServerError)
+					return
+				}
+				files = append(files, file)
+			}
+			if err := rows.Err(); err != nil {
+				http.Error(w, "db error", http.StatusInternalServerError)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(files)
+		case http.MethodPost:
+			uploadFile(w, r, db, filesDir)
+		default:
+			w.Header().Set("Allow", "GET, POST")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func uploadFile(w http.ResponseWriter, r *http.Request, db *sql.DB, filesDir string) {
+	mediaType, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "multipart/form-data" {
+		http.Error(w, "content type must be multipart/form-data", http.StatusUnsupportedMediaType)
+		return
+	}
+	reader := multipart.NewReader(r.Body, params["boundary"])
+	part, err := reader.NextPart()
+	if err != nil || part.FormName() != "file" || part.FileName() == "" {
+		http.Error(w, "file is required", http.StatusBadRequest)
+		return
+	}
+	defer part.Close()
+	name := filepath.Base(strings.ReplaceAll(part.FileName(), "\\", "/"))
+	if name == "." || len(name) > 255 {
+		http.Error(w, "invalid file name", http.StatusBadRequest)
+		return
+	}
+	temp, err := os.CreateTemp(filesDir, ".upload-*")
+	if err != nil {
+		http.Error(w, "storage error", http.StatusInternalServerError)
+		return
+	}
+	tempName := temp.Name()
+	defer os.Remove(tempName)
+	size, copyErr := io.Copy(temp, part)
+	closeErr := temp.Close()
+	if copyErr != nil || closeErr != nil {
+		http.Error(w, "upload failed", http.StatusBadRequest)
+		return
+	}
+	contentType := part.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	now := time.Now().UnixMilli()
+	result, err := db.Exec(`INSERT INTO files (name, content_type, size, created_at) VALUES (?, ?, ?, ?)`, name, contentType, size, now)
+	if err != nil {
+		http.Error(w, "db error", http.StatusInternalServerError)
+		return
+	}
+	id, _ := result.LastInsertId()
+	if err := os.Rename(tempName, filepath.Join(filesDir, strconv.FormatInt(id, 10))); err != nil {
+		db.Exec(`DELETE FROM files WHERE id = ?`, id)
+		http.Error(w, "storage error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(storedFile{ID: id, Name: name, Size: size, CreatedAt: now})
+}
+
+func FileHandler(db *sql.DB, filesDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.ParseInt(strings.TrimPrefix(r.URL.Path, "/api/files/"), 10, 64)
+		if err != nil || id < 1 {
+			http.NotFound(w, r)
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			var name, contentType string
+			var size int64
+			err := db.QueryRow(`SELECT name, content_type, size FROM files WHERE id = ?`, id).Scan(&name, &contentType, &size)
+			if err == sql.ErrNoRows {
+				http.NotFound(w, r)
+				return
+			}
+			if err != nil {
+				http.Error(w, "db error", http.StatusInternalServerError)
+				return
+			}
+			file, err := os.Open(filepath.Join(filesDir, strconv.FormatInt(id, 10)))
+			if err != nil {
+				http.Error(w, "storage error", http.StatusInternalServerError)
+				return
+			}
+			defer file.Close()
+			w.Header().Set("Content-Type", contentType)
+			w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
+			w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+			if _, err := io.Copy(w, file); err != nil {
+				return
+			}
+		case http.MethodDelete:
+			if err := os.Remove(filepath.Join(filesDir, strconv.FormatInt(id, 10))); err != nil && !os.IsNotExist(err) {
+				http.Error(w, "storage error", http.StatusInternalServerError)
+				return
+			}
+			result, err := db.Exec(`DELETE FROM files WHERE id = ?`, id)
+			if err != nil {
+				http.Error(w, "db error", http.StatusInternalServerError)
+				return
+			}
+			if count, _ := result.RowsAffected(); count == 0 {
+				http.NotFound(w, r)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			w.Header().Set("Allow", "GET, DELETE")
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		}
 	}
 }

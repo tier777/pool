@@ -31,6 +31,7 @@ Thumbs.db
 *.db
 *.sqlite
 *.sqlite3
+*.db.files/
 
 # Остальное
 deploy.sh
