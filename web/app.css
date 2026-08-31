@@ -13,7 +13,8 @@ button, input, textarea { appearance: none; background: transparent; border: 4px
 button { cursor: pointer; font-size: 1.25rem; font-weight: 750; min-height: 4rem; padding: 0.875rem 1rem; touch-action: manipulation; }
 button:not(:disabled):active, button:not(:disabled):focus-visible, button:not(:disabled):hover { background: var(--foreground); color: var(--background); }
 button:disabled { cursor: wait; opacity: 0.55; }
-input:focus-visible, textarea:focus-visible, #drop-zone:focus-within { outline: 4px solid var(--foreground); outline-offset: 4px; }
+input:focus-visible, textarea:focus-visible { background: rgb(39 39 39 / 6%); outline: 0; }
+#drop-zone:focus-within { outline: 4px solid var(--foreground); outline-offset: 4px; }
 input::placeholder { color: var(--placeholder); opacity: 1; }
 ::selection { background: var(--foreground); color: var(--background); }
 [hidden], .hidden { display: none !important; }
