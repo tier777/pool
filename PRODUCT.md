@@ -12,7 +12,7 @@ Pool is a private, single-user utility for quickly moving short notes and files 
 
 ## Product Purpose
 
-Pool keeps one shared note and a small collection of downloadable files in one self-hosted place. Success means the latest text and uploaded files are immediately available after authentication.
+Pool keeps one shared note and a small collection of downloadable files in one self-hosted place. Each host serves exactly one Pool, protected by one password. Success means the latest text and uploaded files are immediately available after authentication.
 
 ## Operating Context
 
@@ -21,6 +21,7 @@ The product runs as one Go process backed by one SQLite database and a self-cont
 ## Capabilities and Constraints
 
 - Password-gated, eight-hour server-side sessions.
+- No pool switcher or logout control; session expiry returns the user to the password gate.
 - One autosaved shared note.
 - Authenticated streaming file upload, download, and deletion, bounded by the host filesystem and reverse-proxy configuration.
 - No third-party browser runtime or separate object store.
