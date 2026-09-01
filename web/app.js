@@ -37,6 +37,12 @@ function showGlobalError(message = "") {
   error.hidden = !message;
 }
 
+function loginError(status) {
+  if (status === 401) return "Wrong password. Try again.";
+  if (status === 429) return "Too many attempts. Try again later.";
+  return status ? "Pool could not unlock. Try again." : "Cannot reach Pool. Check the connection and retry.";
+}
+
 async function apiFetch(url, options = {}) {
   const method = (options.method || "GET").toUpperCase();
   const headers = { ...options.headers };
@@ -207,7 +213,7 @@ async function unlock() {
   } catch (error) {
     csrfToken = "";
     input.value = "";
-    showAuthGate(error.status === 401 ? "Wrong password. Try again." : error.status === 429 ? "Too many attempts. Try again later." : "Cannot reach Pool. Check the connection and retry.");
+    showAuthGate(loginError(error.status));
   } finally {
     button.disabled = false;
   }
