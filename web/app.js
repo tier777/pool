@@ -4,6 +4,7 @@ let pollInterval = null;
 let lastServerAt = 0;
 let csrfToken = "";
 let dragDepth = 0;
+let statusTimeout = null;
 
 function showAuthGate(message = "") {
   const gate = document.getElementById("auth-gate");
@@ -33,8 +34,19 @@ function hideAuthGate() {
 
 function showGlobalError(message = "") {
   const error = document.getElementById("global-error");
+  clearTimeout(statusTimeout);
+  error.classList.remove("status");
   error.textContent = message ? `[${message}]` : "";
   error.hidden = !message;
+}
+
+function showGlobalStatus(message) {
+  const error = document.getElementById("global-error");
+  clearTimeout(statusTimeout);
+  error.classList.add("status");
+  error.textContent = `[${message}]`;
+  error.hidden = false;
+  statusTimeout = setTimeout(() => showGlobalError(), 2000);
 }
 
 function loginError(status) {
@@ -100,12 +112,14 @@ async function copyText() {
     await navigator.clipboard.writeText(text.value);
   } catch {
     text.select();
-    document.execCommand("copy");
+    if (!document.execCommand("copy")) return;
   }
+  showGlobalStatus("copied");
 }
 
 function clearText() {
   document.getElementById("text").value = "";
+  showGlobalStatus("clear");
   save();
 }
 

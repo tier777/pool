@@ -25,6 +25,7 @@ input::placeholder { color: var(--placeholder); opacity: 1; }
 #password { font-size: 1rem; height: 4rem; margin-bottom: 1rem; padding: 1rem; width: 100%; }
 #unlock { width: 100%; }
 #auth-error, #global-error { color: var(--error); font-size: 1rem; line-height: 2rem; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#global-error.status { color: var(--foreground); }
 
 main { display: flex; flex-direction: column; min-height: 100dvh; }
 #files-section { margin-top: 1rem; }
