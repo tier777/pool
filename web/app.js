@@ -73,9 +73,9 @@ function clearGlobalError() {
 }
 
 function loginError(status) {
-  if (status === 401) return "wrong password. try again.";
-  if (status === 429) return "too many attempts. try again later.";
-  return status ? "pool could not unlock. try again." : "cannot reach pool. check the connection and retry.";
+  if (status === 401) return "wrong password. try again";
+  if (status === 429) return "too many attempts. try again later";
+  return status ? "pool could not unlock. try again" : "cannot reach pool. check the connection and retry";
 }
 
 async function apiFetch(url, options = {}) {
@@ -87,7 +87,7 @@ async function apiFetch(url, options = {}) {
   const res = await fetch(url, { ...options, credentials: "same-origin", headers });
   if (res.status === 401) {
     csrfToken = "";
-    showAuthGate("password required.");
+    showAuthGate("password required");
   }
   if (!res.ok) {
     const error = new Error("request failed");
@@ -295,7 +295,7 @@ async function init() {
     hideAuthGate();
     startPolling();
   } catch (error) {
-    if (error.status !== 401) showAuthGate(error.status === 429 ? "too many attempts. try again later." : "cannot reach pool. check the connection and retry.");
+    if (error.status !== 401) showAuthGate(error.status === 429 ? "too many attempts. try again later" : "cannot reach pool. check the connection and retry");
   }
 }
 
