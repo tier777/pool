@@ -35,8 +35,8 @@ main { display: flex; flex-direction: column; min-height: 100dvh; }
 .file-download:hover .file-name, .file-download:focus-visible .file-name { text-decoration: underline; text-decoration-thickness: 4px; text-underline-offset: 0.125rem; }
 .file-download:focus-visible { outline: 4px solid var(--foreground); outline-offset: 4px; }
 .file-details { display: grid; gap: 0.25rem; min-width: 0; }
-.file-name { display: block; font-size: 1rem; overflow-wrap: anywhere; }
-.file-size { color: rgb(39 39 39 / 54%); display: block; font-size: 0.875rem; }
+.file-name { display: block; font-size: 1rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.file-size { color: rgb(39 39 39 / 54%); display: block; font-size: 0.875rem; font-weight: 700; line-height: 1.25; }
 .file-menu-trigger { align-self: center; background: transparent !important; border: 0; color: var(--foreground) !important; font-size: 1.5rem; line-height: 1; min-height: 1.5rem; min-width: 1.5rem; padding: 0; }
 .file-menu-icon { align-items: center; display: flex; gap: 0.1875rem; height: 1.5rem; justify-content: center; }
 .file-menu-icon span { background: currentColor; border-radius: 50%; height: 0.3125rem; width: 0.3125rem; }
