@@ -37,7 +37,8 @@ function showGlobalError(message = "") {
   clearTimeout(statusTimeout);
   error.classList.remove("status");
   error.textContent = message ? `[${message}]` : "";
-  error.hidden = !message;
+  if (message) showGlobalMessage(error);
+  else hideGlobalMessage(error);
 }
 
 function showGlobalStatus(message) {
@@ -45,8 +46,28 @@ function showGlobalStatus(message) {
   clearTimeout(statusTimeout);
   error.classList.add("status");
   error.textContent = `[${message}]`;
+  showGlobalMessage(error);
+  statusTimeout = setTimeout(() => hideGlobalMessage(error), 2000);
+}
+
+function showGlobalMessage(error) {
   error.hidden = false;
-  statusTimeout = setTimeout(() => showGlobalError(), 2000);
+  requestAnimationFrame(() => error.classList.add("visible"));
+}
+
+function hideGlobalMessage(error) {
+  error.classList.remove("visible");
+  error.addEventListener("transitionend", () => {
+    if (!error.classList.contains("visible")) {
+      error.hidden = true;
+      error.classList.remove("status");
+    }
+  }, { once: true });
+}
+
+function clearGlobalError() {
+  const error = document.getElementById("global-error");
+  if (!error.classList.contains("status")) showGlobalError();
 }
 
 function loginError(status) {
@@ -92,7 +113,7 @@ async function save() {
       body: JSON.stringify({ content: document.getElementById("text").value }),
     });
     lastServerAt = (await res.json()).updated_at;
-    showGlobalError();
+    clearGlobalError();
   } catch (error) {
     showGlobalError(error.status === 413 ? "note too large" : error.status === 429 ? "try again later" : "note could not be saved");
   } finally {
