@@ -110,9 +110,9 @@ function clearText() {
 }
 
 function formatBytes(bytes) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+  if (bytes < 1024) return `${bytes} b`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} kb`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} mb`;
 }
 
 function renderFiles(files) {
@@ -151,7 +151,11 @@ function renderFiles(files) {
     const trigger = document.createElement("button");
     trigger.className = "file-menu-trigger";
     trigger.type = "button";
-    trigger.textContent = "…";
+    const icon = document.createElement("span");
+    icon.className = "file-menu-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.append(...Array.from({ length: 3 }, () => document.createElement("span")));
+    trigger.append(icon);
     trigger.setAttribute("aria-label", `File actions for ${file.name}`);
     trigger.setAttribute("aria-haspopup", "menu");
     trigger.setAttribute("aria-controls", menu.id);
