@@ -32,7 +32,7 @@ main { display: flex; flex-direction: column; min-height: 100dvh; }
 #files { display: grid; gap: 1rem; }
 .file-row { align-items: center; border: 4px solid var(--foreground); display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr) 1.5rem; min-height: 4.5rem; padding: 1rem; position: relative; }
 .file-download { color: inherit; min-width: 0; text-decoration: none; }
-.file-download:hover .file-name, .file-download:focus-visible .file-name { text-decoration: underline; text-decoration-thickness: 4px; text-underline-offset: 0.125rem; }
+.file-download:hover .file-name, .file-download:focus-visible .file-name { text-decoration: underline; text-decoration-skip-ink: none; text-decoration-thickness: 4px; text-underline-offset: 0.125rem; }
 .file-download:focus-visible { outline: 4px solid var(--foreground); outline-offset: 4px; }
 .file-details { display: grid; gap: 0.25rem; min-width: 0; }
 .file-name { display: block; font-size: 1rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
