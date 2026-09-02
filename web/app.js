@@ -5,6 +5,7 @@ let lastServerAt = 0;
 let csrfToken = "";
 let dragDepth = 0;
 let statusTimeout = null;
+let lastFiles = "";
 
 function showAuthGate(message = "") {
   const gate = document.getElementById("auth-gate");
@@ -212,7 +213,11 @@ function closeFileMenus() {
 }
 
 async function loadFiles() {
-  renderFiles(await (await apiFetch("/api/files")).json());
+  const files = await (await apiFetch("/api/files")).json();
+  const filesState = JSON.stringify(files);
+  if (filesState === lastFiles) return;
+  lastFiles = filesState;
+  renderFiles(files);
 }
 
 async function uploadFiles(files) {
