@@ -32,6 +32,7 @@ main { display: flex; flex-direction: column; min-height: 100dvh; }
 #files { display: grid; gap: 1rem; }
 .file-row { align-items: center; border: 4px solid var(--foreground); display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr) 1.5rem; min-height: 4.5rem; padding: 1rem; position: relative; }
 .file-download { color: inherit; min-width: 0; text-decoration: none; }
+.file-download:hover .file-name, .file-download:focus-visible .file-name { text-decoration: underline; text-decoration-thickness: 4px; text-underline-offset: 0.125rem; }
 .file-download:focus-visible { outline: 4px solid var(--foreground); outline-offset: 4px; }
 .file-details { display: grid; gap: 0.25rem; min-width: 0; }
 .file-name { display: block; font-size: 1rem; overflow-wrap: anywhere; }
@@ -45,6 +46,7 @@ main { display: flex; flex-direction: column; min-height: 100dvh; }
 #text { font-size: 1rem; font-weight: 700; height: 16rem; line-height: 1.2; overflow-y: auto; padding: 0.75rem; resize: none; width: 100%; }
 .actions { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; margin-top: 1rem; }
 #drop-zone { align-items: center; border: 4px dashed var(--foreground); cursor: pointer; display: flex; justify-content: center; margin-top: 2rem; min-height: 4rem; padding: 0.5rem; }
+#drop-zone:hover, #drop-zone:active, #drop-zone:focus-within { background: var(--foreground); color: var(--background); }
 .upload-label, .drop-label { pointer-events: none; }
 .upload-label span { font-size: 1.5rem; margin-right: 0.35rem; }
 .drop-label { display: none; }
