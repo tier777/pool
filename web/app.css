@@ -30,14 +30,14 @@ main { display: flex; flex-direction: column; min-height: 100dvh; }
 #files-section { margin-top: 1rem; }
 #files-section:not(:has(.file-row)) { display: none; }
 #files { display: grid; gap: 1rem; }
-.file-row { border: 4px solid var(--foreground); min-height: 4.5rem; padding: 0.5rem 0.75rem; position: relative; }
-.file-download { color: inherit; display: block; min-height: 3rem; padding-right: 2.5rem; text-decoration: none; }
+.file-row { align-items: center; border: 4px solid var(--foreground); display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr) 1.5rem; min-height: 4.5rem; padding: 1rem; position: relative; }
+.file-download { color: inherit; min-width: 0; text-decoration: none; }
 .file-download:focus-visible { outline: 4px solid var(--foreground); outline-offset: 4px; }
-.file-details { min-width: 0; }
+.file-details { display: grid; gap: 0.25rem; min-width: 0; }
 .file-name { display: block; font-size: 1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-size { color: rgb(39 39 39 / 54%); display: block; font-size: 0.875rem; margin-top: 0.125rem; }
-.file-menu-trigger { border: 0; font-size: 1.5rem; line-height: 1; min-height: 2.5rem; min-width: 2.5rem; padding: 0; position: absolute; right: 0.5rem; top: 0.875rem; }
-.file-menu { background: var(--background); border: 4px solid var(--foreground); padding: 0.25rem; position: absolute; right: -4px; top: 3.75rem; z-index: 1; }
+.file-size { color: rgb(39 39 39 / 54%); display: block; font-size: 0.875rem; }
+.file-menu-trigger { align-self: center; background: transparent !important; border: 0; color: var(--foreground) !important; font-size: 1.5rem; line-height: 1; min-height: 1.5rem; min-width: 1.5rem; padding: 0; }
+.file-menu { background: var(--background); border: 4px solid var(--foreground); padding: 0.25rem; position: absolute; right: 1rem; top: calc(50% + 0.75rem); z-index: 1; }
 .file-menu button { border: 0; font-size: 1rem; min-height: 2.5rem; padding: 0.5rem 0.75rem; }
 
 #text { font-size: 1rem; font-weight: 700; height: 16rem; line-height: 1.2; overflow-y: auto; padding: 0.75rem; resize: none; width: 100%; }
