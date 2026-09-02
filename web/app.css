@@ -45,6 +45,7 @@ main { display: flex; flex-direction: column; min-height: 100dvh; }
 .file-menu-icon { align-items: center; display: flex; gap: 0.1875rem; height: 1.5rem; justify-content: center; }
 .file-menu-icon span { background: currentColor; border-radius: 50%; height: 0.3125rem; width: 0.3125rem; }
 .file-menu { background: var(--background); border: 4px solid var(--foreground); padding: 0.25rem; position: absolute; right: 1rem; top: calc(50% + 0.75rem); z-index: 1; }
+.file-menu:has(button:hover) { background: var(--foreground); }
 .file-menu button { border: 0; font-size: 1rem; min-height: 2.5rem; padding: 0.5rem 0.75rem; }
 
 #text { font-size: 1rem; font-weight: 700; height: 16rem; line-height: 1.2; overflow-y: auto; padding: 0.75rem; resize: none; width: 100%; }
