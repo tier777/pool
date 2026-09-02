@@ -121,6 +121,10 @@ function renderFiles(files) {
   for (const file of files) {
     const row = document.createElement("article");
     row.className = "file-row";
+    const download = document.createElement("a");
+    download.className = "file-download";
+    download.href = `/api/files/${file.id}`;
+    download.setAttribute("aria-label", `Download ${file.name}`);
     const details = document.createElement("div");
     details.className = "file-details";
     const name = document.createElement("strong");
@@ -130,24 +134,42 @@ function renderFiles(files) {
     size.className = "file-size";
     size.textContent = formatBytes(file.size);
     details.append(name, size);
+    download.append(details);
 
-    const download = document.createElement("a");
-    download.className = "file-action";
-    download.href = `/api/files/${file.id}`;
-    download.textContent = "↓";
-    download.setAttribute("aria-label", `Download ${file.name}`);
-    download.title = "Download";
-
+    const menu = document.createElement("div");
+    menu.className = "file-menu";
+    menu.hidden = true;
+    menu.id = `file-menu-${file.id}`;
+    menu.setAttribute("role", "menu");
     const remove = document.createElement("button");
-    remove.className = "file-action file-delete";
     remove.type = "button";
-    remove.textContent = "…";
-    remove.setAttribute("aria-label", `Delete ${file.name}`);
-    remove.title = "Delete";
+    remove.textContent = "Delete";
+    remove.setAttribute("role", "menuitem");
     remove.onclick = () => deleteFile(file);
-    row.append(details, download, remove);
+    menu.append(remove);
+
+    const trigger = document.createElement("button");
+    trigger.className = "file-menu-trigger";
+    trigger.type = "button";
+    trigger.textContent = "…";
+    trigger.setAttribute("aria-label", `File actions for ${file.name}`);
+    trigger.setAttribute("aria-haspopup", "menu");
+    trigger.setAttribute("aria-controls", menu.id);
+    trigger.setAttribute("aria-expanded", "false");
+    trigger.onclick = () => {
+      const isOpen = !menu.hidden;
+      closeFileMenus();
+      menu.hidden = isOpen;
+      trigger.setAttribute("aria-expanded", String(!isOpen));
+    };
+    row.append(download, trigger, menu);
     list.append(row);
   }
+}
+
+function closeFileMenus() {
+  document.querySelectorAll(".file-menu").forEach((menu) => { menu.hidden = true; });
+  document.querySelectorAll(".file-menu-trigger").forEach((trigger) => { trigger.setAttribute("aria-expanded", "false"); });
 }
 
 async function loadFiles() {
@@ -244,6 +266,12 @@ document.getElementById("auth-gate").addEventListener("keydown", (event) => {
   const unlockButton = document.getElementById("unlock");
   if (event.shiftKey && document.activeElement === password) { event.preventDefault(); unlockButton.focus(); }
   else if (!event.shiftKey && document.activeElement === unlockButton) { event.preventDefault(); password.focus(); }
+});
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".file-row")) closeFileMenus();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") closeFileMenus();
 });
 
 document.addEventListener("dragenter", (event) => {
