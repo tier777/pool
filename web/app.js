@@ -15,8 +15,9 @@ function showAuthGate(message = "") {
   gate.classList.remove("hidden");
   main.inert = true;
   main.setAttribute("aria-hidden", "true");
-  error.textContent = message;
-  error.hidden = !message;
+  error.textContent = message ? `[${message}]` : "";
+  if (message) showMessage(error);
+  else hideMessage(error);
   password.setAttribute("aria-invalid", String(Boolean(message)));
   requestAnimationFrame(() => password.focus());
   if (pollInterval) clearInterval(pollInterval);
@@ -28,7 +29,7 @@ function hideAuthGate() {
   const main = document.querySelector("main");
   main.inert = false;
   main.removeAttribute("aria-hidden");
-  document.getElementById("auth-error").hidden = true;
+  hideMessage(document.getElementById("auth-error"));
   document.getElementById("password").setAttribute("aria-invalid", "false");
   document.getElementById("text").focus();
 }
@@ -38,8 +39,8 @@ function showGlobalError(message = "") {
   clearTimeout(statusTimeout);
   error.classList.remove("status");
   error.textContent = message ? `[${message}]` : "";
-  if (message) showGlobalMessage(error);
-  else hideGlobalMessage(error);
+  if (message) showMessage(error);
+  else hideMessage(error);
 }
 
 function showGlobalStatus(message) {
@@ -47,16 +48,16 @@ function showGlobalStatus(message) {
   clearTimeout(statusTimeout);
   error.classList.add("status");
   error.textContent = `[${message}]`;
-  showGlobalMessage(error);
-  statusTimeout = setTimeout(() => hideGlobalMessage(error), 2000);
+  showMessage(error);
+  statusTimeout = setTimeout(() => hideMessage(error), 2000);
 }
 
-function showGlobalMessage(error) {
+function showMessage(error) {
   error.hidden = false;
   requestAnimationFrame(() => error.classList.add("visible"));
 }
 
-function hideGlobalMessage(error) {
+function hideMessage(error) {
   error.classList.remove("visible");
   error.addEventListener("transitionend", () => {
     if (!error.classList.contains("visible")) {
