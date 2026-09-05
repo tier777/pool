@@ -65,8 +65,8 @@ func TestPasswordSettingsLifecycle(t *testing.T) {
 	if got := change(`{"password_enabled":false,"current_password":"wrong"}`, csrf); got != 403 {
 		t.Fatalf("wrong password: %d", got)
 	}
-	if got := change(`{"password_enabled":true,"new_password":"short"}`, csrf); got != 400 {
-		t.Fatalf("short password: %d", got)
+	if got := change(`{"password_enabled":true,"new_password":"12"}`, csrf); got != 400 {
+		t.Fatalf("two-character PIN: %d", got)
 	}
 	if got := change(disabled, csrf); got != 204 {
 		t.Fatalf("disable: %d", got)
@@ -105,11 +105,19 @@ func TestPasswordSettingsLifecycle(t *testing.T) {
 	if got := change(`{"password_enabled":true,"new_password":"a different long password"}`, ""); got != 403 {
 		t.Fatalf("open session without CSRF: %d", got)
 	}
-	newPassword := "a different long password"
+	newPassword := "123"
 	if got := change(`{"password_enabled":true,"new_password":"`+newPassword+`"}`, csrf); got != 204 {
 		t.Fatalf("enable: %d", got)
 	}
 	readPIN(cookie, 200, newPassword)
+	shortLogin := httptest.NewRequest("POST", "/api/login", strings.NewReader(`{"password":"123"}`))
+	shortLogin.Header.Set("Content-Type", "application/json")
+	shortResult := httptest.NewRecorder()
+	auth.login(shortResult, shortLogin)
+	if shortResult.Code != 200 {
+		t.Fatalf("three-character PIN login: %d", shortResult.Code)
+	}
+	readPIN(shortResult.Result().Cookies()[0], 200, "123")
 	res = httptest.NewRecorder()
 	auth.sessionInfo(res, httptest.NewRequest("GET", "/api/session", nil))
 	if res.Code != 401 {

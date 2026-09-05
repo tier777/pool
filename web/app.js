@@ -17,7 +17,7 @@ function showAuthGate(message = "") {
   gate.classList.remove("hidden");
   main.inert = true;
   main.setAttribute("aria-hidden", "true");
-  error.textContent = message ? `[${message}]` : "";
+  error.textContent = message ? `[${message.toLowerCase()}]` : "";
   if (message) showMessage(error);
   else hideMessage(error);
   password.setAttribute("aria-invalid", String(Boolean(message)));
@@ -40,7 +40,7 @@ function showGlobalError(message = "") {
   const error = document.getElementById("global-error");
   clearTimeout(statusTimeout);
   error.classList.remove("status");
-  error.textContent = message ? `[${message}]` : "";
+  error.textContent = message ? `[${message.toLowerCase()}]` : "";
   if (message) showMessage(error);
   else hideMessage(error);
 }
@@ -49,7 +49,7 @@ function showGlobalStatus(message) {
   const error = document.getElementById("global-error");
   clearTimeout(statusTimeout);
   error.classList.add("status");
-  error.textContent = `[${message}]`;
+  error.textContent = `[${message.toLowerCase()}]`;
   showMessage(error);
   statusTimeout = setTimeout(() => hideMessage(error), 2000);
 }
@@ -384,13 +384,22 @@ function updatePinVisibility() {
   if (!input.value) setPinVisible(false);
 }
 
+function showSettingsError(message = "") {
+  const error = document.getElementById("password-error");
+  error.textContent = message ? `[${message.toLowerCase()}]` : "";
+  document.getElementById("settings-pin").setAttribute("aria-invalid", String(Boolean(message)));
+  if (message) {
+    document.getElementById("settings-message").textContent = "";
+    showMessage(error);
+  } else hideMessage(error);
+}
+
 function renderSettingsInput() {
   setPinVisible(false);
   const enabled = document.getElementById("password-toggle").getAttribute("aria-checked") === "true";
   const input = document.getElementById("settings-pin");
   input.disabled = !enabled;
   input.required = enabled;
-  input.minLength = 16;
   input.maxLength = 1024;
   updatePinVisibility();
   document.getElementById("settings-message").textContent = !enabled && passwordEnabled ? "Without a PIN, anyone who can reach Pool can read and edit its contents and settings." : "";
@@ -403,7 +412,7 @@ async function openSettings() {
   document.getElementById("settings-screen").hidden = false;
   document.getElementById("open-settings").hidden = true;
   document.getElementById("pin-form").reset();
-  document.getElementById("password-error").hidden = true;
+  showSettingsError();
   const controls = document.querySelectorAll("#settings-screen button, #settings-screen input");
   controls.forEach(control => { control.disabled = true; });
   message.textContent = "Loading…";
@@ -418,18 +427,28 @@ async function openSettings() {
     renderSettingsInput();
     document.getElementById("settings-screen").focus({preventScroll: true});
   } catch {
-    message.textContent = "Could not load settings. Return to Pool and retry.";
+    message.textContent = "";
+    showSettingsError("settings could not load — retry");
   }
 }
 
 async function savePassword(event) {
   event.preventDefault();
   if (settingsBusy) return;
-  const error = document.getElementById("password-error");
   const input = document.getElementById("settings-pin");
   const enabled = document.getElementById("password-toggle").getAttribute("aria-checked") === "true";
   const newPIN = enabled ? input.value : "";
-  error.hidden = true;
+  showSettingsError();
+  if (enabled && [...newPIN].length < 3) {
+    showSettingsError("pin too short — min 3");
+    input.focus();
+    return;
+  }
+  if (enabled && new TextEncoder().encode(newPIN).length > 1024) {
+    showSettingsError("pin too long");
+    input.focus();
+    return;
+  }
   if (enabled === passwordEnabled && newPIN === activePIN) {
     document.getElementById("settings-message").textContent = "Saved.";
     setPinVisible(false);
@@ -447,8 +466,7 @@ async function savePassword(event) {
     renderSettingsInput();
     document.getElementById("settings-message").textContent = "Saved.";
   } catch (failure) {
-    error.textContent = failure.status === 403 ? "PIN changed. Reopen settings and try again." : failure.status === 429 ? "Too many attempts. Try again in a minute." : failure.status === 400 ? "Use a PIN of at least 16 characters." : "Could not save settings. Try again.";
-    error.hidden = false;
+    showSettingsError(failure.status === 403 ? "pin changed — reopen settings" : failure.status === 429 ? "too many attempts — retry later" : failure.status === 400 ? "invalid pin — try again" : "settings could not save — retry");
   } finally {
     settingsBusy = false;
     controls.forEach(control => { control.disabled = false; });
@@ -463,7 +481,7 @@ document.getElementById("pool-home").onclick = event => { event.preventDefault()
 document.getElementById("password-toggle").onclick = () => {
   const toggle = document.getElementById("password-toggle");
   toggle.setAttribute("aria-checked", String(toggle.getAttribute("aria-checked") !== "true"));
-  document.getElementById("password-error").hidden = true;
+  showSettingsError();
   renderSettingsInput();
 };
 document.getElementById("pin-form").onsubmit = savePassword;

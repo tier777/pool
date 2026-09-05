@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -637,8 +638,8 @@ func (a *authManager) settings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	if *req.Enabled && (len(req.Password) < 16 || len(req.Password) > 1024) {
-		http.Error(w, "password must be 16–1024 bytes", http.StatusBadRequest)
+	if *req.Enabled && (utf8.RuneCountInString(req.Password) < 3 || len(req.Password) > 1024) {
+		http.Error(w, "PIN must contain at least 3 characters and at most 1024 bytes", http.StatusBadRequest)
 		return
 	}
 	key, _, ok := a.currentSession(r)
