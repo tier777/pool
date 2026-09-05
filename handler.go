@@ -39,6 +39,8 @@ type authAttempt struct {
 }
 
 type session struct {
+	// PIN is retained only for this expiring in-memory session, never in SQLite.
+	pin       string
 	csrfToken string
 	expiresAt time.Time
 }
@@ -227,11 +229,11 @@ func (a *authManager) login(w http.ResponseWriter, r *http.Request) {
 	}
 	defer a.mu.Unlock()
 	delete(a.attempts, host)
-	a.createSession(w, r)
+	a.createSession(w, r, req.Password)
 }
 
 // createSession is called with mu held so a password change cannot race login.
-func (a *authManager) createSession(w http.ResponseWriter, r *http.Request) {
+func (a *authManager) createSession(w http.ResponseWriter, r *http.Request, pin string) {
 	sessionToken, err := randomToken()
 	if err != nil {
 		http.Error(w, "session error", http.StatusInternalServerError)
@@ -255,7 +257,7 @@ func (a *authManager) createSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "too many active sessions", http.StatusServiceUnavailable)
 		return
 	}
-	a.sessions[key] = session{csrfToken: csrfToken, expiresAt: expires}
+	a.sessions[key] = session{csrfToken: csrfToken, expiresAt: expires, pin: pin}
 
 	setSessionCookie(w, r, sessionToken, expires)
 	w.Header().Set("Content-Type", "application/json")
@@ -314,7 +316,7 @@ func (a *authManager) sessionInfo(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
-		a.createSession(w, r)
+		a.createSession(w, r, "")
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -588,10 +590,19 @@ func (a *authManager) loadSettings(db *sql.DB) error {
 
 func (a *authManager) settings(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
+		key, _, ok := a.currentSession(r)
 		a.mu.Lock()
 		defer a.mu.Unlock()
+		current, exists := a.sessions[key]
+		if !ok || !exists || !a.now().Before(current.expiresAt) {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]bool{"password_enabled": a.passwordEnabled})
+		json.NewEncoder(w).Encode(struct {
+			Enabled bool   `json:"password_enabled"`
+			PIN     string `json:"pin"`
+		}{a.passwordEnabled, current.pin})
 		return
 	}
 	if r.Method != http.MethodPost {
@@ -659,6 +670,12 @@ func (a *authManager) settings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.passwordEnabled, a.passwordSalt, a.passwordHash = *req.Enabled, salt, hash
+	current := a.sessions[key]
+	current.pin = ""
+	if *req.Enabled {
+		current.pin = req.Password
+	}
+	a.sessions[key] = current
 	for candidate := range a.sessions {
 		if candidate != key {
 			delete(a.sessions, candidate)

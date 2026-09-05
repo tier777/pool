@@ -22,7 +22,7 @@ input::placeholder { color: var(--placeholder); opacity: 1; }
 .auth-card, main { margin-inline: auto; max-width: 24.5625rem; padding: 2rem; width: 100%; }
 .auth-card h1, .page-header h1 { font-size: 4rem; font-weight: 700; letter-spacing: -0.035em; line-height: 1.1875; margin: 0; }
 .auth-card .error-slot, main .error-slot { height: 2rem; }
-#password, #new-password { font-size: 1rem; }
+#password, #settings-pin { font-size: 1rem; }
 #password { height: 4rem; margin-bottom: 1rem; padding: 1rem; width: 100%; }
 #unlock { width: 100%; }
 #auth-error, #global-error { color: var(--error); font-size: 1rem; line-height: 2rem; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -69,7 +69,7 @@ main { display: flex; flex-direction: column; min-height: 100dvh; }
 #pool-home:focus-visible { outline: 3px solid var(--foreground); outline-offset: 4px; }
 #settings-screen { margin-top: 2rem; padding-left: 0.3125rem; }
 #settings-screen:focus { outline: none; }
-#password-form { margin: 0; }
+#pin-form { margin: 0; }
 .protection-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 3.5rem; }
 #protection-label { font-size: 1.5rem; }
 #password-toggle { width: 4rem; min-height: 2.75rem; height: 2.75rem; padding: 0; border: 0; flex-shrink: 0; position: relative; }
@@ -79,13 +79,15 @@ main { display: flex; flex-direction: column; min-height: 100dvh; }
 #password-toggle:not(:disabled):hover, #password-toggle:not(:disabled):active { background: transparent; }
 #password-toggle:focus-visible { background: transparent; outline: 3px solid var(--foreground); outline-offset: 4px; }
 .pin-field { position: relative; width: calc(100% + 0.25rem); margin-top: 1.1875rem; }
-#new-password { display: block; width: 100%; height: 4.5rem; padding: 1rem 4rem 1rem 1rem; }
+#settings-pin { display: block; width: 100%; height: 4.5rem; padding: 1rem 4rem 1rem 1rem; }
 #toggle-pin-visibility { position: absolute; right: 0.75rem; top: 0.875rem; display: grid; place-items: center; width: 2.75rem; min-height: 2.75rem; padding: 0; border: 0; }
 #toggle-pin-visibility:disabled { cursor: default; }
 .eye-slash { display: none; }
 #toggle-pin-visibility.is-visible .eye-slash { display: block; }
-#new-password:disabled { opacity: 0.55; }
+#settings-pin:disabled { opacity: 0.55; }
 #save-password { width: calc(100% + 0.25rem); margin-top: 2rem; }
 #settings-message, #password-error { font-size: 1rem; line-height: 1.4; margin: 1rem 0 0; }
 #settings-message:empty { display: none; }
 #settings-message.error, #password-error { color: var(--error); }
+
+#settings-pin.masked { -webkit-text-security: disc; }
