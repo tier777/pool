@@ -355,7 +355,7 @@ document.addEventListener("drop", (event) => {
 });
 
 let passwordEnabled = true;
-let settingsMode = "change";
+let pendingPassword = null;
 let settingsBusy = false;
 
 function closeSettings(restoreFocus = true) {
@@ -364,15 +364,20 @@ function closeSettings(restoreFocus = true) {
   document.getElementById("pool-screen").hidden = false;
   document.getElementById("open-settings").hidden = false;
   document.getElementById("password-form").reset();
+  pendingPassword = null;
   if (restoreFocus) document.getElementById("open-settings").focus();
 }
 
-function renderSettings() {
-  document.getElementById("password-toggle").setAttribute("aria-checked", String(passwordEnabled));
-  document.getElementById("protection-help").textContent = passwordEnabled ? "Password is required to open Pool." : "Pool opens without a password.";
-  document.getElementById("change-password").hidden = !passwordEnabled;
-  document.getElementById("password-form").hidden = true;
-  document.getElementById("password-form").reset();
+function renderSettingsInput() {
+  const enabled = document.getElementById("password-toggle").getAttribute("aria-checked") === "true";
+  const input = document.getElementById("new-password");
+  input.disabled = !enabled && pendingPassword === null;
+  input.required = pendingPassword !== null || (enabled && !passwordEnabled);
+  input.minLength = pendingPassword !== null ? 0 : 16;
+  input.maxLength = 1024;
+  input.autocomplete = pendingPassword !== null ? "current-password" : "new-password";
+  input.setAttribute("aria-label", pendingPassword !== null ? "Current PIN" : "New PIN");
+  document.getElementById("settings-message").textContent = pendingPassword !== null ? "Enter your current password to confirm." : !enabled && passwordEnabled ? "Without a PIN, anyone who can reach Pool can read and edit its contents and settings." : "";
 }
 
 async function openSettings() {
@@ -381,84 +386,80 @@ async function openSettings() {
   document.getElementById("pool-screen").hidden = true;
   document.getElementById("settings-screen").hidden = false;
   document.getElementById("open-settings").hidden = true;
-  document.getElementById("settings-title").focus();
-  document.getElementById("password-form").hidden = true;
-  document.getElementById("password-toggle").disabled = true;
-  document.getElementById("change-password").disabled = true;
-  message.classList.remove("error");
+  document.getElementById("password-form").reset();
+  document.getElementById("password-error").hidden = true;
+  pendingPassword = null;
+  const controls = document.querySelectorAll("#settings-screen button, #settings-screen input");
+  controls.forEach(control => { control.disabled = true; });
   message.textContent = "Loading…";
   try {
     const data = await (await apiFetch("/api/settings")).json();
     passwordEnabled = data.password_enabled;
-    renderSettings();
-    message.textContent = "";
-    document.getElementById("password-toggle").disabled = false;
-    document.getElementById("change-password").disabled = false;
+    document.getElementById("password-toggle").setAttribute("aria-checked", String(passwordEnabled));
+    controls.forEach(control => { control.disabled = false; });
+    renderSettingsInput();
+    if (!document.getElementById("settings-screen").hidden) document.getElementById("settings-screen").focus({preventScroll: true});
   } catch {
-    message.classList.add("error");
-    message.textContent = "Could not load settings. Go back and retry.";
+    message.textContent = "Could not load settings. Return to Pool and retry.";
   }
-}
-
-function showPasswordForm(mode) {
-  settingsMode = mode;
-  const form = document.getElementById("password-form");
-  form.reset();
-  form.hidden = false;
-  document.getElementById("settings-message").textContent = "";
-  document.getElementById("change-password").hidden = true;
-  document.getElementById("password-error").hidden = true;
-  document.getElementById("password-form-title").textContent = mode === "disable" ? "Turn off password" : mode === "enable" ? "Turn on password" : "Change password";
-  document.getElementById("current-password-field").hidden = !passwordEnabled;
-  document.getElementById("current-password").disabled = !passwordEnabled;
-  document.getElementById("new-password-fields").hidden = mode === "disable";
-  document.getElementById("new-password").disabled = mode === "disable";
-  document.getElementById("confirm-password").disabled = mode === "disable";
-  document.getElementById("password-warning").hidden = mode !== "disable";
-  document.getElementById("save-password").textContent = mode === "disable" ? "Turn off password" : "Save password";
-  document.getElementById(passwordEnabled ? "current-password" : "new-password").focus();
 }
 
 async function savePassword(event) {
   event.preventDefault();
   if (settingsBusy) return;
   const error = document.getElementById("password-error");
-  const newPassword = document.getElementById("new-password").value;
+  const input = document.getElementById("new-password");
+  const enabled = document.getElementById("password-toggle").getAttribute("aria-checked") === "true";
   error.hidden = true;
-  if (settingsMode !== "disable" && newPassword !== document.getElementById("confirm-password").value) {
-    error.textContent = "Passwords do not match. Try again.";
-    error.hidden = false;
-    document.getElementById("confirm-password").focus();
-    return;
+  if (pendingPassword === null) {
+    if (enabled === passwordEnabled && (!enabled || !input.value)) {
+      closeSettings();
+      return;
+    }
+    pendingPassword = enabled ? input.value : "";
+    input.value = "";
+    if (passwordEnabled) {
+      renderSettingsInput();
+      input.focus();
+      return;
+    }
   }
-  const body = JSON.stringify({password_enabled: settingsMode !== "disable", current_password: document.getElementById("current-password").value, new_password: settingsMode === "disable" ? "" : newPassword});
+  const body = JSON.stringify({password_enabled: enabled, current_password: passwordEnabled ? input.value : "", new_password: pendingPassword});
   settingsBusy = true;
-  const controls = [...document.querySelectorAll("#settings-screen button, #password-form input")];
-  const previous = controls.map(control => control.disabled);
+  const controls = [...document.querySelectorAll("#settings-screen button, #settings-screen input")];
   controls.forEach(control => { control.disabled = true; });
   try {
     await apiFetch("/api/settings", {method: "POST", headers: {"Content-Type": "application/json"}, body});
-    passwordEnabled = settingsMode !== "disable";
-    renderSettings();
-    const message = document.getElementById("settings-message");
-    message.classList.remove("error");
-    message.textContent = settingsMode === "disable" ? "Password turned off." : settingsMode === "enable" ? "Password turned on." : "Password changed.";
-    document.getElementById("settings-title").focus();
+    passwordEnabled = enabled;
+    pendingPassword = null;
+    input.value = "";
+    renderSettingsInput();
+    document.getElementById("settings-message").textContent = "Saved.";
   } catch (failure) {
+    // Retry enabling from the new-password step; protected changes retain confirmation.
+    if (!passwordEnabled) pendingPassword = null;
     error.textContent = failure.status === 403 ? "Current password is incorrect. Try again." : failure.status === 429 ? "Too many attempts. Try again in a minute." : failure.status === 400 ? "Use a password of at least 16 characters." : "Could not save settings. Try again.";
     error.hidden = false;
   } finally {
     settingsBusy = false;
-    controls.forEach((control, index) => { control.disabled = previous[index]; });
+    controls.forEach(control => { control.disabled = false; });
+    // Keep success and error messages while restoring the field's enabled state.
+    input.disabled = !enabled && pendingPassword === null;
+    input.required = pendingPassword !== null || (enabled && !passwordEnabled);
     if (!document.getElementById("auth-gate").classList.contains("hidden")) closeSettings(false);
   }
 }
 
 document.getElementById("open-settings").onclick = openSettings;
-document.getElementById("back-to-pool").onclick = () => closeSettings();
-document.getElementById("password-toggle").onclick = () => showPasswordForm(passwordEnabled ? "disable" : "enable");
-document.getElementById("change-password").onclick = () => showPasswordForm("change");
-document.getElementById("cancel-password").onclick = () => { renderSettings(); document.getElementById("password-toggle").focus(); };
+document.getElementById("pool-home").onclick = event => { event.preventDefault(); closeSettings(); };
+document.getElementById("password-toggle").onclick = () => {
+  const toggle = document.getElementById("password-toggle");
+  toggle.setAttribute("aria-checked", String(toggle.getAttribute("aria-checked") !== "true"));
+  pendingPassword = null;
+  document.getElementById("password-form").reset();
+  document.getElementById("password-error").hidden = true;
+  renderSettingsInput();
+};
 document.getElementById("password-form").onsubmit = savePassword;
 
 init();
