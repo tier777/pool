@@ -357,6 +357,7 @@ document.addEventListener("drop", (event) => {
 let passwordEnabled = true;
 let activePIN = "";
 let settingsBusy = false;
+let settingsStatusTimeout = null;
 
 function closeSettings(restoreFocus = true) {
   if (settingsBusy) return;
@@ -365,6 +366,7 @@ function closeSettings(restoreFocus = true) {
   document.getElementById("open-settings").hidden = false;
   document.getElementById("pin-form").reset();
   activePIN = "";
+  showSettingsError();
   if (restoreFocus) document.getElementById("open-settings").focus();
 }
 
@@ -386,12 +388,25 @@ function updatePinVisibility() {
 
 function showSettingsError(message = "") {
   const error = document.getElementById("password-error");
+  clearTimeout(settingsStatusTimeout);
+  error.classList.remove("status");
+  error.setAttribute("role", "alert");
   error.textContent = message ? `[${message.toLowerCase()}]` : "";
   document.getElementById("settings-pin").setAttribute("aria-invalid", String(Boolean(message)));
   if (message) {
     document.getElementById("settings-message").textContent = "";
     showMessage(error);
   } else hideMessage(error);
+}
+
+function showSettingsStatus() {
+  showSettingsError();
+  const status = document.getElementById("password-error");
+  status.classList.add("status");
+  status.setAttribute("role", "status");
+  status.textContent = "[saved]";
+  showMessage(status);
+  settingsStatusTimeout = setTimeout(() => hideMessage(status), 2000);
 }
 
 function renderSettingsInput() {
@@ -450,7 +465,7 @@ async function savePassword(event) {
     return;
   }
   if (enabled === passwordEnabled && newPIN === activePIN) {
-    document.getElementById("settings-message").textContent = "Saved.";
+    showSettingsStatus();
     setPinVisible(false);
     return;
   }
@@ -464,7 +479,7 @@ async function savePassword(event) {
     activePIN = newPIN;
     input.value = activePIN;
     renderSettingsInput();
-    document.getElementById("settings-message").textContent = "Saved.";
+    showSettingsStatus();
   } catch (failure) {
     showSettingsError(failure.status === 403 ? "pin changed — reopen settings" : failure.status === 429 ? "too many attempts — retry later" : failure.status === 400 ? "invalid pin — try again" : "settings could not save — retry");
   } finally {
