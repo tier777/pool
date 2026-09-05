@@ -355,7 +355,7 @@ document.addEventListener("drop", (event) => {
 });
 
 let passwordEnabled = true;
-let pendingPassword = null;
+let activePIN = "";
 let settingsBusy = false;
 
 function closeSettings(restoreFocus = true) {
@@ -363,20 +363,23 @@ function closeSettings(restoreFocus = true) {
   document.getElementById("settings-screen").hidden = true;
   document.getElementById("pool-screen").hidden = false;
   document.getElementById("open-settings").hidden = false;
-  document.getElementById("password-form").reset();
-  pendingPassword = null;
+  document.getElementById("pin-form").reset();
+  activePIN = "";
   if (restoreFocus) document.getElementById("open-settings").focus();
 }
 
 function setPinVisible(visible) {
-  document.getElementById("new-password").type = visible ? "text" : "password";
+  const input = document.getElementById("settings-pin");
+  // Ordinary text-input semantics avoid password-generation UI; use native masking.
+  input.type = visible || CSS.supports("-webkit-text-security", "disc") ? "text" : "password";
+  input.classList.toggle("masked", !visible);
   const button = document.getElementById("toggle-pin-visibility");
   button.setAttribute("aria-label", visible ? "Hide PIN" : "Show PIN");
   button.classList.toggle("is-visible", visible);
 }
 
 function updatePinVisibility() {
-  const input = document.getElementById("new-password");
+  const input = document.getElementById("settings-pin");
   document.getElementById("toggle-pin-visibility").disabled = input.disabled || !input.value;
   if (!input.value) setPinVisible(false);
 }
@@ -384,16 +387,13 @@ function updatePinVisibility() {
 function renderSettingsInput() {
   setPinVisible(false);
   const enabled = document.getElementById("password-toggle").getAttribute("aria-checked") === "true";
-  const input = document.getElementById("new-password");
-  input.disabled = !enabled && pendingPassword === null;
-  updatePinVisibility();
-  input.required = pendingPassword !== null || (enabled && !passwordEnabled);
-  input.minLength = pendingPassword !== null ? 0 : 16;
+  const input = document.getElementById("settings-pin");
+  input.disabled = !enabled;
+  input.required = enabled;
+  input.minLength = 16;
   input.maxLength = 1024;
-  input.autocomplete = pendingPassword !== null ? "current-password" : "new-password";
-  input.placeholder = pendingPassword !== null ? "Current PIN" : "New PIN";
-  input.setAttribute("aria-label", input.placeholder);
-  document.getElementById("settings-message").textContent = pendingPassword !== null ? "Enter your current PIN to confirm." : !enabled && passwordEnabled ? "Without a PIN, anyone who can reach Pool can read and edit its contents and settings." : "";
+  updatePinVisibility();
+  document.getElementById("settings-message").textContent = !enabled && passwordEnabled ? "Without a PIN, anyone who can reach Pool can read and edit its contents and settings." : "";
 }
 
 async function openSettings() {
@@ -402,19 +402,21 @@ async function openSettings() {
   document.getElementById("pool-screen").hidden = true;
   document.getElementById("settings-screen").hidden = false;
   document.getElementById("open-settings").hidden = true;
-  document.getElementById("password-form").reset();
+  document.getElementById("pin-form").reset();
   document.getElementById("password-error").hidden = true;
-  pendingPassword = null;
   const controls = document.querySelectorAll("#settings-screen button, #settings-screen input");
   controls.forEach(control => { control.disabled = true; });
   message.textContent = "Loading…";
   try {
     const data = await (await apiFetch("/api/settings")).json();
+    if (document.getElementById("settings-screen").hidden) return;
     passwordEnabled = data.password_enabled;
+    activePIN = data.pin;
+    document.getElementById("settings-pin").value = activePIN;
     document.getElementById("password-toggle").setAttribute("aria-checked", String(passwordEnabled));
     controls.forEach(control => { control.disabled = false; });
     renderSettingsInput();
-    if (!document.getElementById("settings-screen").hidden) document.getElementById("settings-screen").focus({preventScroll: true});
+    document.getElementById("settings-screen").focus({preventScroll: true});
   } catch {
     message.textContent = "Could not load settings. Return to Pool and retry.";
   }
@@ -424,45 +426,34 @@ async function savePassword(event) {
   event.preventDefault();
   if (settingsBusy) return;
   const error = document.getElementById("password-error");
-  const input = document.getElementById("new-password");
+  const input = document.getElementById("settings-pin");
   const enabled = document.getElementById("password-toggle").getAttribute("aria-checked") === "true";
+  const newPIN = enabled ? input.value : "";
   error.hidden = true;
-  if (pendingPassword === null) {
-    if (enabled === passwordEnabled && (!enabled || !input.value)) {
-      closeSettings();
-      return;
-    }
-    pendingPassword = enabled ? input.value : "";
-    input.value = "";
-    if (passwordEnabled) {
-      renderSettingsInput();
-      input.focus();
-      return;
-    }
+  if (enabled === passwordEnabled && newPIN === activePIN) {
+    document.getElementById("settings-message").textContent = "Saved.";
+    setPinVisible(false);
+    return;
   }
-  const body = JSON.stringify({password_enabled: enabled, current_password: passwordEnabled ? input.value : "", new_password: pendingPassword});
+  const body = JSON.stringify({password_enabled: enabled, current_password: activePIN, new_password: newPIN});
   settingsBusy = true;
   const controls = [...document.querySelectorAll("#settings-screen button, #settings-screen input")];
   controls.forEach(control => { control.disabled = true; });
   try {
     await apiFetch("/api/settings", {method: "POST", headers: {"Content-Type": "application/json"}, body});
     passwordEnabled = enabled;
-    pendingPassword = null;
-    input.value = "";
+    activePIN = newPIN;
+    input.value = activePIN;
     renderSettingsInput();
     document.getElementById("settings-message").textContent = "Saved.";
   } catch (failure) {
-    // Retry enabling from the new-password step; protected changes retain confirmation.
-    if (!passwordEnabled) pendingPassword = null;
-    error.textContent = failure.status === 403 ? "Current PIN is incorrect. Try again." : failure.status === 429 ? "Too many attempts. Try again in a minute." : failure.status === 400 ? "Use a PIN of at least 16 characters." : "Could not save settings. Try again.";
+    error.textContent = failure.status === 403 ? "PIN changed. Reopen settings and try again." : failure.status === 429 ? "Too many attempts. Try again in a minute." : failure.status === 400 ? "Use a PIN of at least 16 characters." : "Could not save settings. Try again.";
     error.hidden = false;
   } finally {
     settingsBusy = false;
     controls.forEach(control => { control.disabled = false; });
-    // Keep success and error messages while restoring the field's enabled state.
-    input.disabled = !enabled && pendingPassword === null;
+    input.disabled = !enabled;
     updatePinVisibility();
-    input.required = pendingPassword !== null || (enabled && !passwordEnabled);
     if (!document.getElementById("auth-gate").classList.contains("hidden")) closeSettings(false);
   }
 }
@@ -472,19 +463,17 @@ document.getElementById("pool-home").onclick = event => { event.preventDefault()
 document.getElementById("password-toggle").onclick = () => {
   const toggle = document.getElementById("password-toggle");
   toggle.setAttribute("aria-checked", String(toggle.getAttribute("aria-checked") !== "true"));
-  pendingPassword = null;
-  document.getElementById("password-form").reset();
   document.getElementById("password-error").hidden = true;
   renderSettingsInput();
 };
-document.getElementById("password-form").onsubmit = savePassword;
-document.getElementById("password-form").addEventListener("reset", () => {
+document.getElementById("pin-form").onsubmit = savePassword;
+document.getElementById("pin-form").addEventListener("reset", () => {
   setPinVisible(false);
   document.getElementById("toggle-pin-visibility").disabled = true;
 });
-document.getElementById("new-password").addEventListener("input", updatePinVisibility);
+document.getElementById("settings-pin").addEventListener("input", updatePinVisibility);
 document.getElementById("toggle-pin-visibility").onclick = () => {
-  setPinVisible(document.getElementById("new-password").type === "password");
+  setPinVisible(document.getElementById("toggle-pin-visibility").getAttribute("aria-label") === "Show PIN");
 };
 
 init();
