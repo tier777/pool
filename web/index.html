@@ -20,21 +20,60 @@
         </div>
 
         <main aria-hidden="true" inert>
-            <h1>Pool</h1>
-            <div class="error-slot"><p id="global-error" role="alert" hidden></p></div>
-            <label for="text" class="sr-only">Shared notes</label>
-            <textarea id="text"></textarea>
-            <div class="actions">
-                <button id="clear" type="button">Clear</button>
-                <button id="copy" type="button">Copy</button>
+            <header class="page-header"><h1>Pool</h1><button id="open-settings" class="icon-button" type="button" aria-label="Settings"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M10 2h4l.5 3 2 1.2 2.8-1 2 3.4-2.3 2v2.8l2.3 2-2 3.4-2.8-1-2 1.2-.5 3h-4l-.5-3-2-1.2-2.8 1-2-3.4 2.3-2v-2.8l-2.3-2 2-3.4 2.8 1 2-1.2z" fill="currentColor"/><circle cx="12" cy="12" r="3.5" fill="var(--background)"/></svg></button></header>
+            <div id="pool-screen">
+                <div class="error-slot"><p id="global-error" role="alert" hidden></p></div>
+                <label for="text" class="sr-only">Shared notes</label>
+                <textarea id="text"></textarea>
+                <div class="actions">
+                    <button id="clear" type="button">Clear</button>
+                    <button id="copy" type="button">Copy</button>
+                </div>
+                <label id="drop-zone" for="file-input">
+                    <input id="file-input" type="file" multiple hidden />
+                    <span class="upload-label"><span aria-hidden="true">↑</span> Add files</span>
+                    <span class="drop-label">Drop files here</span>
+                </label>
+                <section id="files-section" aria-label="Shared files">
+                    <div id="files"></div>
+                </section>
             </div>
-            <label id="drop-zone" for="file-input">
-                <input id="file-input" type="file" multiple hidden />
-                <span class="upload-label"><span aria-hidden="true">↑</span> Add files</span>
-                <span class="drop-label">Drop files here</span>
-            </label>
-            <section id="files-section" aria-label="Shared files">
-                <div id="files"></div>
+            <!-- Settings extends the shared clipboard: warm paper, bold ink and square controls.
+                 A single column keeps protection state first, followed by the relevant password form. -->
+            <section id="settings-screen" aria-labelledby="settings-title" hidden>
+                <button id="back-to-pool" class="back-button" type="button">← Back</button>
+                <h2 id="settings-title" tabindex="-1">Settings</h2>
+                <p id="settings-message" role="status" aria-live="polite"></p>
+                <div class="protection-row">
+                    <span id="protection-label">Password</span>
+                    <button id="password-toggle" type="button" role="switch" aria-checked="true" aria-labelledby="protection-label" aria-describedby="protection-help"><span aria-hidden="true"></span></button>
+                </div>
+                <p id="protection-help" class="settings-help">Password is required to open Pool.</p>
+                <button id="change-password" type="button">Change password</button>
+                <form id="password-form" hidden>
+                    <h3 id="password-form-title">Change password</h3>
+                    <div id="current-password-field" class="password-field">
+                        <label for="current-password">Current password</label>
+                        <input id="current-password" type="password" autocomplete="current-password" required />
+                    </div>
+                    <div id="new-password-fields">
+                        <div class="password-field">
+                            <label for="new-password">New password</label>
+                            <input id="new-password" type="password" autocomplete="new-password" minlength="16" maxlength="1024" aria-describedby="password-help" required />
+                            <p id="password-help" class="settings-help">At least 16 characters.</p>
+                        </div>
+                        <div class="password-field">
+                            <label for="confirm-password">Confirm password</label>
+                            <input id="confirm-password" type="password" autocomplete="new-password" minlength="16" maxlength="1024" required />
+                        </div>
+                    </div>
+                    <p id="password-warning" class="settings-help" hidden>Anyone who can reach Pool will be able to read and edit its text, files and settings.</p>
+                    <p id="password-error" role="alert" hidden></p>
+                    <div class="settings-actions">
+                        <button id="save-password" type="submit">Save password</button>
+                        <button id="cancel-password" type="button">Cancel</button>
+                    </div>
+                </form>
             </section>
         </main>
         <script src="/app.js"></script>
