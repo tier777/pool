@@ -80,8 +80,8 @@ main { display: flex; flex-direction: column; min-height: 100dvh; }
 #password-toggle:focus-visible { background: transparent; outline: 3px solid var(--foreground); outline-offset: 4px; }
 .pin-field { position: relative; width: calc(100% + 0.25rem); margin-top: 1.1875rem; }
 #new-password { display: block; width: 100%; height: 4.5rem; padding: 1rem 4rem 1rem 1rem; }
-#new-password::placeholder { color: var(--foreground); -webkit-text-security: disc; }
 #toggle-pin-visibility { position: absolute; right: 0.75rem; top: 0.875rem; display: grid; place-items: center; width: 2.75rem; min-height: 2.75rem; padding: 0; border: 0; }
+#toggle-pin-visibility:disabled { cursor: default; }
 .eye-slash { display: none; }
 #toggle-pin-visibility.is-visible .eye-slash { display: block; }
 #new-password:disabled { opacity: 0.55; }

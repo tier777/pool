@@ -20,7 +20,7 @@
         </div>
 
         <main aria-hidden="true" inert>
-            <header class="page-header"><h1><a id="pool-home" href="#" aria-label="Back to Pool">Pool</a></h1><button id="open-settings" class="icon-button" type="button" aria-label="Settings"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M10 2h4l.5 3 2 1.2 2.8-1 2 3.4-2.3 2v2.8l2.3 2-2 3.4-2.8-1-2 1.2-.5 3h-4l-.5-3-2-1.2-2.8 1-2-3.4 2.3-2v-2.8l-2.3-2 2-3.4 2.8 1 2-1.2z" fill="currentColor"/><circle cx="12" cy="12" r="3.5" fill="var(--background)"/></svg></button></header>
+            <header class="page-header"><h1><a id="pool-home" href="#" aria-label="Back to Pool">Pool</a></h1><button id="open-settings" class="icon-button" type="button" aria-label="Settings"><svg viewBox="0 0 24 24" width="28" height="28" aria-hidden="true"><path d="M10 2h4l.5 3 2 1.2 2.8-1 2 3.4-2.3 2v2.8l2.3 2-2 3.4-2.8-1-2 1.2-.5 3h-4l-.5-3-2-1.2-2.8 1-2-3.4 2.3-2v-2.8l-2.3-2 2-3.4 2.8 1 2-1.2z M15.5 12a3.5 3.5 0 1 0-7 0 3.5 3.5 0 1 0 7 0Z" fill="currentColor" fill-rule="evenodd"/></svg></button></header>
             <div id="pool-screen">
                 <div class="error-slot"><p id="global-error" role="alert" hidden></p></div>
                 <label for="text" class="sr-only">Shared notes</label>
@@ -45,9 +45,9 @@
                         <button id="password-toggle" type="button" role="switch" aria-checked="true" aria-labelledby="protection-label"><span aria-hidden="true"></span></button>
                     </div>
                     <div class="pin-field">
-                        <input id="new-password" type="password" autocomplete="new-password" placeholder="••••" aria-describedby="settings-message" />
-                        <button id="toggle-pin-visibility" type="button" aria-label="Show PIN" aria-controls="new-password">
-                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <input id="new-password" type="password" autocomplete="new-password" placeholder="New PIN" aria-describedby="settings-message" />
+                        <button id="toggle-pin-visibility" type="button" aria-label="Show PIN" aria-controls="new-password" disabled>
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
                                 <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
                                 <circle cx="12" cy="12" r="3" />
                                 <path class="eye-slash" d="m3 3 18 18" />

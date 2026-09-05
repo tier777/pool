@@ -375,17 +375,24 @@ function setPinVisible(visible) {
   button.classList.toggle("is-visible", visible);
 }
 
+function updatePinVisibility() {
+  const input = document.getElementById("new-password");
+  document.getElementById("toggle-pin-visibility").disabled = input.disabled || !input.value;
+  if (!input.value) setPinVisible(false);
+}
+
 function renderSettingsInput() {
   setPinVisible(false);
   const enabled = document.getElementById("password-toggle").getAttribute("aria-checked") === "true";
   const input = document.getElementById("new-password");
   input.disabled = !enabled && pendingPassword === null;
-  document.getElementById("toggle-pin-visibility").disabled = input.disabled;
+  updatePinVisibility();
   input.required = pendingPassword !== null || (enabled && !passwordEnabled);
   input.minLength = pendingPassword !== null ? 0 : 16;
   input.maxLength = 1024;
   input.autocomplete = pendingPassword !== null ? "current-password" : "new-password";
-  input.setAttribute("aria-label", pendingPassword !== null ? "Current PIN" : "New PIN");
+  input.placeholder = pendingPassword !== null ? "Current PIN" : "New PIN";
+  input.setAttribute("aria-label", input.placeholder);
   document.getElementById("settings-message").textContent = pendingPassword !== null ? "Enter your current PIN to confirm." : !enabled && passwordEnabled ? "Without a PIN, anyone who can reach Pool can read and edit its contents and settings." : "";
 }
 
@@ -454,7 +461,7 @@ async function savePassword(event) {
     controls.forEach(control => { control.disabled = false; });
     // Keep success and error messages while restoring the field's enabled state.
     input.disabled = !enabled && pendingPassword === null;
-    document.getElementById("toggle-pin-visibility").disabled = input.disabled;
+    updatePinVisibility();
     input.required = pendingPassword !== null || (enabled && !passwordEnabled);
     if (!document.getElementById("auth-gate").classList.contains("hidden")) closeSettings(false);
   }
@@ -471,7 +478,11 @@ document.getElementById("password-toggle").onclick = () => {
   renderSettingsInput();
 };
 document.getElementById("password-form").onsubmit = savePassword;
-document.getElementById("password-form").addEventListener("reset", () => setPinVisible(false));
+document.getElementById("password-form").addEventListener("reset", () => {
+  setPinVisible(false);
+  document.getElementById("toggle-pin-visibility").disabled = true;
+});
+document.getElementById("new-password").addEventListener("input", updatePinVisibility);
 document.getElementById("toggle-pin-visibility").onclick = () => {
   setPinVisible(document.getElementById("new-password").type === "password");
 };
