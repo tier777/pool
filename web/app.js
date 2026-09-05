@@ -75,7 +75,7 @@ function clearGlobalError() {
 }
 
 function loginError(status) {
-  if (status === 401) return "wrong password. try again";
+  if (status === 401) return "wrong PIN. try again";
   if (status === 429) return "too many attempts. try again later";
   return status ? "pool could not unlock. try again" : "cannot reach pool. check the connection and retry";
 }
@@ -100,7 +100,7 @@ async function apiFetch(url, options = {}, retry = true) {
   }
   if (res.status === 401) {
     csrfToken = "";
-    showAuthGate("password required");
+    showAuthGate("PIN required");
   }
   if (!res.ok) {
     const error = new Error("request failed");
@@ -368,16 +368,25 @@ function closeSettings(restoreFocus = true) {
   if (restoreFocus) document.getElementById("open-settings").focus();
 }
 
+function setPinVisible(visible) {
+  document.getElementById("new-password").type = visible ? "text" : "password";
+  const button = document.getElementById("toggle-pin-visibility");
+  button.setAttribute("aria-label", visible ? "Hide PIN" : "Show PIN");
+  button.classList.toggle("is-visible", visible);
+}
+
 function renderSettingsInput() {
+  setPinVisible(false);
   const enabled = document.getElementById("password-toggle").getAttribute("aria-checked") === "true";
   const input = document.getElementById("new-password");
   input.disabled = !enabled && pendingPassword === null;
+  document.getElementById("toggle-pin-visibility").disabled = input.disabled;
   input.required = pendingPassword !== null || (enabled && !passwordEnabled);
   input.minLength = pendingPassword !== null ? 0 : 16;
   input.maxLength = 1024;
   input.autocomplete = pendingPassword !== null ? "current-password" : "new-password";
   input.setAttribute("aria-label", pendingPassword !== null ? "Current PIN" : "New PIN");
-  document.getElementById("settings-message").textContent = pendingPassword !== null ? "Enter your current password to confirm." : !enabled && passwordEnabled ? "Without a PIN, anyone who can reach Pool can read and edit its contents and settings." : "";
+  document.getElementById("settings-message").textContent = pendingPassword !== null ? "Enter your current PIN to confirm." : !enabled && passwordEnabled ? "Without a PIN, anyone who can reach Pool can read and edit its contents and settings." : "";
 }
 
 async function openSettings() {
@@ -438,13 +447,14 @@ async function savePassword(event) {
   } catch (failure) {
     // Retry enabling from the new-password step; protected changes retain confirmation.
     if (!passwordEnabled) pendingPassword = null;
-    error.textContent = failure.status === 403 ? "Current password is incorrect. Try again." : failure.status === 429 ? "Too many attempts. Try again in a minute." : failure.status === 400 ? "Use a password of at least 16 characters." : "Could not save settings. Try again.";
+    error.textContent = failure.status === 403 ? "Current PIN is incorrect. Try again." : failure.status === 429 ? "Too many attempts. Try again in a minute." : failure.status === 400 ? "Use a PIN of at least 16 characters." : "Could not save settings. Try again.";
     error.hidden = false;
   } finally {
     settingsBusy = false;
     controls.forEach(control => { control.disabled = false; });
     // Keep success and error messages while restoring the field's enabled state.
     input.disabled = !enabled && pendingPassword === null;
+    document.getElementById("toggle-pin-visibility").disabled = input.disabled;
     input.required = pendingPassword !== null || (enabled && !passwordEnabled);
     if (!document.getElementById("auth-gate").classList.contains("hidden")) closeSettings(false);
   }
@@ -461,5 +471,9 @@ document.getElementById("password-toggle").onclick = () => {
   renderSettingsInput();
 };
 document.getElementById("password-form").onsubmit = savePassword;
+document.getElementById("password-form").addEventListener("reset", () => setPinVisible(false));
+document.getElementById("toggle-pin-visibility").onclick = () => {
+  setPinVisible(document.getElementById("new-password").type === "password");
+};
 
 init();
