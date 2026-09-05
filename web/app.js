@@ -3,6 +3,7 @@ let isTyping = false;
 let pollInterval = null;
 let lastServerAt = 0;
 let csrfToken = "";
+let sessionRefresh = null;
 let dragDepth = 0;
 let statusTimeout = null;
 let lastFiles = "";
@@ -12,6 +13,7 @@ function showAuthGate(message = "") {
   const main = document.querySelector("main");
   const password = document.getElementById("password");
   const error = document.getElementById("auth-error");
+  closeSettings(false);
   gate.classList.remove("hidden");
   main.inert = true;
   main.setAttribute("aria-hidden", "true");
@@ -78,13 +80,24 @@ function loginError(status) {
   return status ? "pool could not unlock. try again" : "cannot reach pool. check the connection and retry";
 }
 
-async function apiFetch(url, options = {}) {
+async function apiFetch(url, options = {}, retry = true) {
   const method = (options.method || "GET").toUpperCase();
   const headers = { ...options.headers };
   if (!["GET", "HEAD", "OPTIONS"].includes(method) && csrfToken) {
     headers["X-CSRF-Token"] = csrfToken;
   }
   const res = await fetch(url, { ...options, credentials: "same-origin", headers });
+  if (res.status === 401 && retry) {
+    if (!sessionRefresh) {
+      sessionRefresh = fetch("/api/session", { credentials: "same-origin" })
+        .then(async session => {
+          if (!session.ok) return false;
+          csrfToken = (await session.json()).csrf_token;
+          return true;
+        }).finally(() => { sessionRefresh = null; });
+    }
+    if (await sessionRefresh) return apiFetch(url, options, false);
+  }
   if (res.status === 401) {
     csrfToken = "";
     showAuthGate("password required");
@@ -340,5 +353,112 @@ document.addEventListener("drop", (event) => {
   document.getElementById("drop-zone").classList.remove("dragging");
   uploadFiles(event.dataTransfer.files);
 });
+
+let passwordEnabled = true;
+let settingsMode = "change";
+let settingsBusy = false;
+
+function closeSettings(restoreFocus = true) {
+  if (settingsBusy) return;
+  document.getElementById("settings-screen").hidden = true;
+  document.getElementById("pool-screen").hidden = false;
+  document.getElementById("open-settings").hidden = false;
+  document.getElementById("password-form").reset();
+  if (restoreFocus) document.getElementById("open-settings").focus();
+}
+
+function renderSettings() {
+  document.getElementById("password-toggle").setAttribute("aria-checked", String(passwordEnabled));
+  document.getElementById("protection-help").textContent = passwordEnabled ? "Password is required to open Pool." : "Pool opens without a password.";
+  document.getElementById("change-password").hidden = !passwordEnabled;
+  document.getElementById("password-form").hidden = true;
+  document.getElementById("password-form").reset();
+}
+
+async function openSettings() {
+  closeFileMenus();
+  const message = document.getElementById("settings-message");
+  document.getElementById("pool-screen").hidden = true;
+  document.getElementById("settings-screen").hidden = false;
+  document.getElementById("open-settings").hidden = true;
+  document.getElementById("settings-title").focus();
+  document.getElementById("password-form").hidden = true;
+  document.getElementById("password-toggle").disabled = true;
+  document.getElementById("change-password").disabled = true;
+  message.classList.remove("error");
+  message.textContent = "Loading…";
+  try {
+    const data = await (await apiFetch("/api/settings")).json();
+    passwordEnabled = data.password_enabled;
+    renderSettings();
+    message.textContent = "";
+    document.getElementById("password-toggle").disabled = false;
+    document.getElementById("change-password").disabled = false;
+  } catch {
+    message.classList.add("error");
+    message.textContent = "Could not load settings. Go back and retry.";
+  }
+}
+
+function showPasswordForm(mode) {
+  settingsMode = mode;
+  const form = document.getElementById("password-form");
+  form.reset();
+  form.hidden = false;
+  document.getElementById("settings-message").textContent = "";
+  document.getElementById("change-password").hidden = true;
+  document.getElementById("password-error").hidden = true;
+  document.getElementById("password-form-title").textContent = mode === "disable" ? "Turn off password" : mode === "enable" ? "Turn on password" : "Change password";
+  document.getElementById("current-password-field").hidden = !passwordEnabled;
+  document.getElementById("current-password").disabled = !passwordEnabled;
+  document.getElementById("new-password-fields").hidden = mode === "disable";
+  document.getElementById("new-password").disabled = mode === "disable";
+  document.getElementById("confirm-password").disabled = mode === "disable";
+  document.getElementById("password-warning").hidden = mode !== "disable";
+  document.getElementById("save-password").textContent = mode === "disable" ? "Turn off password" : "Save password";
+  document.getElementById(passwordEnabled ? "current-password" : "new-password").focus();
+}
+
+async function savePassword(event) {
+  event.preventDefault();
+  if (settingsBusy) return;
+  const error = document.getElementById("password-error");
+  const newPassword = document.getElementById("new-password").value;
+  error.hidden = true;
+  if (settingsMode !== "disable" && newPassword !== document.getElementById("confirm-password").value) {
+    error.textContent = "Passwords do not match. Try again.";
+    error.hidden = false;
+    document.getElementById("confirm-password").focus();
+    return;
+  }
+  const body = JSON.stringify({password_enabled: settingsMode !== "disable", current_password: document.getElementById("current-password").value, new_password: settingsMode === "disable" ? "" : newPassword});
+  settingsBusy = true;
+  const controls = [...document.querySelectorAll("#settings-screen button, #password-form input")];
+  const previous = controls.map(control => control.disabled);
+  controls.forEach(control => { control.disabled = true; });
+  try {
+    await apiFetch("/api/settings", {method: "POST", headers: {"Content-Type": "application/json"}, body});
+    passwordEnabled = settingsMode !== "disable";
+    renderSettings();
+    const message = document.getElementById("settings-message");
+    message.classList.remove("error");
+    message.textContent = settingsMode === "disable" ? "Password turned off." : settingsMode === "enable" ? "Password turned on." : "Password changed.";
+    document.getElementById("settings-title").focus();
+  } catch (failure) {
+    error.textContent = failure.status === 403 ? "Current password is incorrect. Try again." : failure.status === 429 ? "Too many attempts. Try again in a minute." : failure.status === 400 ? "Use a password of at least 16 characters." : "Could not save settings. Try again.";
+    error.hidden = false;
+  } finally {
+    settingsBusy = false;
+    controls.forEach((control, index) => { control.disabled = previous[index]; });
+    if (!document.getElementById("auth-gate").classList.contains("hidden")) closeSettings(false);
+  }
+}
+
+document.getElementById("open-settings").onclick = openSettings;
+document.getElementById("back-to-pool").onclick = () => closeSettings();
+document.getElementById("password-toggle").onclick = () => showPasswordForm(passwordEnabled ? "disable" : "enable");
+document.getElementById("change-password").onclick = () => showPasswordForm("change");
+document.getElementById("cancel-password").onclick = () => { renderSettings(); document.getElementById("password-toggle").focus(); };
+document.getElementById("password-form").onsubmit = savePassword;
 
 init();

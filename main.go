@@ -31,6 +31,9 @@ func main() {
 		log.Fatal("failed to create files directory: ", err)
 	}
 	auth := newAuthManager(password)
+	if err := auth.loadSettings(db); err != nil {
+		log.Fatal("failed to load settings: ", err)
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -42,7 +45,8 @@ func main() {
 		fmt.Fprint(w, "pong")
 	})
 	mux.HandleFunc("/api/login", auth.login)
-	mux.HandleFunc("/api/session", auth.withSession(auth.sessionInfo))
+	mux.HandleFunc("/api/session", auth.sessionInfo)
+	mux.HandleFunc("/api/settings", auth.withSession(auth.settings))
 	mux.HandleFunc("/api/logout", auth.withSession(auth.logout))
 	mux.HandleFunc("/api/pool", auth.withSession(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

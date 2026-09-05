@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -43,11 +44,14 @@ type session struct {
 }
 
 type authManager struct {
-	mu           sync.Mutex
-	passwordHash [sha256.Size]byte
-	attempts     map[string]authAttempt
-	sessions     map[[sha256.Size]byte]session
-	now          func() time.Time
+	mu              sync.Mutex
+	passwordHash    [sha256.Size]byte
+	passwordSalt    string
+	passwordEnabled bool
+	db              *sql.DB
+	attempts        map[string]authAttempt
+	sessions        map[[sha256.Size]byte]session
+	now             func() time.Time
 }
 
 type Pool struct {
@@ -75,11 +79,17 @@ type storedFile struct {
 }
 
 func newAuthManager(password string) *authManager {
+	salt, err := randomToken()
+	if err != nil {
+		panic(err)
+	}
 	return &authManager{
-		passwordHash: sha256.Sum256([]byte(password)),
-		attempts:     make(map[string]authAttempt),
-		sessions:     make(map[[sha256.Size]byte]session),
-		now:          time.Now,
+		passwordEnabled: true,
+		passwordSalt:    salt,
+		passwordHash:    passwordDigest(password, salt),
+		attempts:        make(map[string]authAttempt),
+		sessions:        make(map[[sha256.Size]byte]session),
+		now:             time.Now,
 	}
 }
 
@@ -207,13 +217,21 @@ func (a *authManager) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	actual := sha256.Sum256([]byte(req.Password))
-	if subtle.ConstantTimeCompare(actual[:], a.passwordHash[:]) != 1 {
+	a.mu.Lock()
+	actual := passwordDigest(req.Password, a.passwordSalt)
+	if !a.passwordEnabled || subtle.ConstantTimeCompare(actual[:], a.passwordHash[:]) != 1 {
+		a.mu.Unlock()
 		a.recordPasswordFailure(host)
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+	defer a.mu.Unlock()
+	delete(a.attempts, host)
+	a.createSession(w, r)
+}
 
+// createSession is called with mu held so a password change cannot race login.
+func (a *authManager) createSession(w http.ResponseWriter, r *http.Request) {
 	sessionToken, err := randomToken()
 	if err != nil {
 		http.Error(w, "session error", http.StatusInternalServerError)
@@ -228,20 +246,16 @@ func (a *authManager) login(w http.ResponseWriter, r *http.Request) {
 	expires := now.Add(sessionDuration)
 	key := sha256.Sum256([]byte(sessionToken))
 
-	a.mu.Lock()
-	delete(a.attempts, host)
 	for candidate, value := range a.sessions {
 		if now.After(value.expiresAt) {
 			delete(a.sessions, candidate)
 		}
 	}
 	if len(a.sessions) >= maxSessions {
-		a.mu.Unlock()
 		http.Error(w, "too many active sessions", http.StatusServiceUnavailable)
 		return
 	}
 	a.sessions[key] = session{csrfToken: csrfToken, expiresAt: expires}
-	a.mu.Unlock()
 
 	setSessionCookie(w, r, sessionToken, expires)
 	w.Header().Set("Content-Type", "application/json")
@@ -286,12 +300,23 @@ func (a *authManager) withSession(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func (a *authManager) sessionInfo(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	if r.Method != http.MethodGet {
 		w.Header().Set("Allow", "GET")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	_, current, _ := a.currentSession(r)
+	_, current, ok := a.currentSession(r)
+	if !ok {
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		if a.passwordEnabled {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		a.createSession(w, r)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(sessionResponse{CSRFToken: current.csrfToken})
 }
@@ -530,4 +555,115 @@ func FileHandler(db *sql.DB, filesDir string) http.HandlerFunc {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}
+}
+
+func passwordDigest(password, salt string) [sha256.Size]byte {
+	key, err := pbkdf2.Key(sha256.New, password, []byte(salt), 600000, sha256.Size)
+	if err != nil {
+		panic(err)
+	}
+	return [sha256.Size]byte(key)
+}
+
+func (a *authManager) loadSettings(db *sql.DB) error {
+	a.db = db
+	_, err := db.Exec(`CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK (id = 1), password_enabled INTEGER NOT NULL, password_salt TEXT NOT NULL, password_hash BLOB NOT NULL)`)
+	if err != nil {
+		return err
+	}
+	_, err = db.Exec(`INSERT OR IGNORE INTO settings VALUES (1, ?, ?, ?)`, a.passwordEnabled, a.passwordSalt, a.passwordHash[:])
+	if err != nil {
+		return err
+	}
+	var hash []byte
+	if err := db.QueryRow(`SELECT password_enabled, password_salt, password_hash FROM settings WHERE id = 1`).Scan(&a.passwordEnabled, &a.passwordSalt, &hash); err != nil {
+		return err
+	}
+	if len(hash) != sha256.Size {
+		return errors.New("invalid stored password hash")
+	}
+	copy(a.passwordHash[:], hash)
+	return nil
+}
+
+func (a *authManager) settings(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]bool{"password_enabled": a.passwordEnabled})
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", "GET, POST")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil || mediaType != "application/json" {
+		http.Error(w, "content type must be application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+	host := clientHost(r)
+	if allowed, retry := a.allowPasswordAttempt(host); !allowed {
+		w.Header().Set("Retry-After", strconv.Itoa(retry))
+		http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+		return
+	}
+	var req struct {
+		Enabled  *bool  `json:"password_enabled"`
+		Current  string `json:"current_password"`
+		Password string `json:"new_password"`
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxLoginBytes)
+	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&req); err != nil || req.Enabled == nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if *req.Enabled && (len(req.Password) < 16 || len(req.Password) > 1024) {
+		http.Error(w, "password must be 16–1024 bytes", http.StatusBadRequest)
+		return
+	}
+	key, _, ok := a.currentSession(r)
+	a.mu.Lock()
+	// Recheck under the mutation lock after any concurrent settings change.
+	if _, exists := a.sessions[key]; !ok || !exists {
+		a.mu.Unlock()
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+	if a.passwordEnabled {
+		actual := passwordDigest(req.Current, a.passwordSalt)
+		if subtle.ConstantTimeCompare(actual[:], a.passwordHash[:]) != 1 {
+			a.mu.Unlock()
+			a.recordPasswordFailure(host)
+			http.Error(w, "wrong current password", http.StatusForbidden)
+			return
+		}
+	}
+	defer a.mu.Unlock()
+	salt, err := randomToken()
+	if err != nil {
+		http.Error(w, "settings error", 500)
+		return
+	}
+	hash := passwordDigest(req.Password, salt)
+	if _, err := a.db.Exec(`UPDATE settings SET password_enabled = ?, password_salt = ?, password_hash = ? WHERE id = 1`, *req.Enabled, salt, hash[:]); err != nil {
+		http.Error(w, "settings could not be saved", 500)
+		return
+	}
+	a.passwordEnabled, a.passwordSalt, a.passwordHash = *req.Enabled, salt, hash
+	for candidate := range a.sessions {
+		if candidate != key {
+			delete(a.sessions, candidate)
+		}
+	}
+	clear(a.attempts)
+	w.WriteHeader(http.StatusNoContent)
 }

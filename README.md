@@ -19,6 +19,8 @@ Compose runs a short-lived `prepare-data` service to give UID 10001 access to th
 
 Do not expose the HTTP port directly to a network. For remote access, put Caddy, nginx, Traefik, or another maintained reverse proxy in front of `127.0.0.1:8080`, terminate HTTPS there, and enable HSTS there after HTTPS is working. The browser sends the shared password during login, so plain HTTP is safe only on the local machine.
 
+Use the gear button to open Settings and enable, disable, or change password protection. Protected changes require the current password; new passwords require at least 16 characters. Turning protection off allows anyone who can reach Pool to read and edit its contents and settings. Changes revoke other sessions and are stored in SQLite as a salted PBKDF2-SHA256 hash (600,000 iterations), so they survive restarts. The configured startup password initializes a new database only; keep the startup configuration present for server startup.
+
 Successful login creates an eight-hour server-side session. The browser keeps only an `HttpOnly`, `SameSite=Strict` cookie; the cookie is `Secure` through HTTPS and intentionally omits `Secure` only for loopback HTTP development. Logging out, session expiry, or restarting Pool revokes the session.
 
 ## Configuration
