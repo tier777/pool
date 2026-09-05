@@ -39,13 +39,14 @@
                 </section>
             </div>
             <section id="settings-screen" aria-label="Settings" tabindex="-1" hidden>
-                <form id="pin-form" autocomplete="off">
+                <div class="error-slot"><p id="password-error" role="alert" hidden></p></div>
+                <form id="pin-form" autocomplete="off" novalidate>
                     <div class="protection-row">
                         <label id="protection-label" for="settings-pin">PIN</label>
                         <button id="password-toggle" type="button" role="switch" aria-checked="true" aria-labelledby="protection-label"><span aria-hidden="true"></span></button>
                     </div>
                     <div class="pin-field">
-                        <input id="settings-pin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" placeholder="PIN" aria-describedby="settings-message" />
+                        <input id="settings-pin" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" data-1p-ignore data-lpignore="true" placeholder="PIN" aria-describedby="settings-message password-error" aria-invalid="false" />
                         <button id="toggle-pin-visibility" type="button" aria-label="Show PIN" aria-controls="settings-pin" disabled>
                             <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
                                 <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
@@ -56,7 +57,6 @@
                     </div>
                     <button id="save-password" type="submit">Save</button>
                     <p id="settings-message" role="status" aria-live="polite"></p>
-                    <p id="password-error" role="alert" hidden></p>
                 </form>
             </section>
         </main>

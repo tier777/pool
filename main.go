@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unicode/utf8"
 )
 
 func main() {
@@ -118,8 +119,8 @@ func loadPassword() (string, error) {
 		}
 		password = strings.TrimSpace(string(contents))
 	}
-	if len(password) < 16 {
-		return "", errors.New("APP_PASSWORD or APP_PASSWORD_FILE must contain at least 16 characters")
+	if utf8.RuneCountInString(password) < 3 || len(password) > 1024 {
+		return "", errors.New("APP_PASSWORD or APP_PASSWORD_FILE must contain at least 3 characters and at most 1024 bytes")
 	}
 	return password, nil
 }
