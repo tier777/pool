@@ -13,8 +13,8 @@
             <div class="auth-card">
                 <h1 id="auth-title">Pool</h1>
                 <div class="error-slot"><p id="auth-error" role="alert" hidden></p></div>
-                <label for="password" class="sr-only">Password</label>
-                <input id="password" type="password" autocomplete="current-password" aria-describedby="auth-error" aria-invalid="false" placeholder="Password" />
+                <label for="password" class="sr-only">PIN</label>
+                <input id="password" type="password" autocomplete="current-password" aria-describedby="auth-error" aria-invalid="false" placeholder="PIN" />
                 <button id="unlock" type="button">Unlock</button>
             </div>
         </div>
@@ -44,7 +44,16 @@
                         <label id="protection-label" for="new-password">PIN</label>
                         <button id="password-toggle" type="button" role="switch" aria-checked="true" aria-labelledby="protection-label"><span aria-hidden="true"></span></button>
                     </div>
-                    <input id="new-password" type="password" autocomplete="new-password" placeholder="· · · ·" aria-describedby="settings-message" />
+                    <div class="pin-field">
+                        <input id="new-password" type="password" autocomplete="new-password" placeholder="••••" aria-describedby="settings-message" />
+                        <button id="toggle-pin-visibility" type="button" aria-label="Show PIN" aria-controls="new-password">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                                <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+                                <circle cx="12" cy="12" r="3" />
+                                <path class="eye-slash" d="m3 3 18 18" />
+                            </svg>
+                        </button>
+                    </div>
                     <button id="save-password" type="submit">Save</button>
                     <p id="settings-message" role="status" aria-live="polite"></p>
                     <p id="password-error" role="alert" hidden></p>
