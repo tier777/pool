@@ -364,6 +364,7 @@ function closeSettings(restoreFocus = true) {
   document.getElementById("settings-screen").hidden = true;
   document.getElementById("pool-screen").hidden = false;
   document.getElementById("open-settings").hidden = false;
+  document.getElementById("close-settings").hidden = true;
   document.getElementById("pin-form").reset();
   activePIN = "";
   showSettingsError();
@@ -426,6 +427,7 @@ async function openSettings() {
   document.getElementById("pool-screen").hidden = true;
   document.getElementById("settings-screen").hidden = false;
   document.getElementById("open-settings").hidden = true;
+  document.getElementById("close-settings").hidden = false;
   document.getElementById("pin-form").reset();
   showSettingsError();
   const controls = document.querySelectorAll("#settings-screen button, #settings-screen input");
@@ -471,7 +473,7 @@ async function savePassword(event) {
   }
   const body = JSON.stringify({password_enabled: enabled, current_password: activePIN, new_password: newPIN});
   settingsBusy = true;
-  const controls = [...document.querySelectorAll("#settings-screen button, #settings-screen input")];
+  const controls = [...document.querySelectorAll("#settings-screen button, #settings-screen input, #close-settings")];
   controls.forEach(control => { control.disabled = true; });
   try {
     await apiFetch("/api/settings", {method: "POST", headers: {"Content-Type": "application/json"}, body});
@@ -492,6 +494,7 @@ async function savePassword(event) {
 }
 
 document.getElementById("open-settings").onclick = openSettings;
+document.getElementById("close-settings").onclick = () => closeSettings();
 document.getElementById("pool-home").onclick = event => { event.preventDefault(); closeSettings(); };
 document.getElementById("password-toggle").onclick = () => {
   const toggle = document.getElementById("password-toggle");
